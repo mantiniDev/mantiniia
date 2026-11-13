@@ -491,7 +491,7 @@
 
   // ===================== Importação do Clock (Java) =====================
   // Formato: linhas separadas por TAB.
-  //   S chave valor                         configurações (slack_* são ignoradas)
+  //   S chave valor                         configurações (só as metas são lidas)
   //   E id início fim segundos origem projeto nome categoria qtd
   //   R nome categoria qtd início pausas    tarefa em andamento (pausas "ini,fim;ini,fim")
   //   J data entrada saída pausas           ponto do dia

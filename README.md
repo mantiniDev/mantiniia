@@ -32,7 +32,7 @@ Versão web do Clock (Java/Swing), renomeado para in_clock. Mesmas funções:
   exportação **.xlsx** (abas: Lançamentos, Resumo por dia, Por categoria, Ponto)
   e **CSV** (um por seção, em .zip; `;`/`,` decimal para Excel BR ou `,`/`.` internacional).
 - **Ajustes** — meta diária e semanal; backup/restauração em .json; **importar `clock_data.txt`** do Clock em Java
-  (lançamentos, ponto, tarefa em andamento e metas; reimportar não duplica; configurações do Slack são ignoradas).
+  (lançamentos, ponto, tarefa em andamento e metas; reimportar não duplica).
 
 > Os dados ficam no navegador em que foram lançados. Para trocar de computador/navegador,
 > use **Ajustes → Baixar backup** e **Restaurar backup**.
