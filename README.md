@@ -13,7 +13,7 @@ assets/base.css     visual compartilhado (cartões, botões, tabelas, modo escur
 assets/export.js    exportação sem bibliotecas: .xlsx, .csv e .zip
 assets/icon.svg     símbolo (logo) — também icon-512.png
 assets/logo.svg     logo completo (símbolo + nome)
-in_clock/           in_clock — tarefas, ponto/banco de horas, uso do Claude, relatórios
+in_clock/           in_clock — tarefas, ponto/banco de horas, relatórios
 CNAME               domínio (www.mantini.ia.br)
 ```
 
@@ -29,18 +29,17 @@ Versão web do Clock (Java/Swing), renomeado para in_clock. Mesmas funções:
   editor de dia (entrada, saída, pausas) e "Novo dia" para registros retroativos.
   O ícone da aba fica **verde** com ponto aberto e **amarelo** em pausa.
 - **Relatórios** — período (inclui personalizado), resumo por categoria e por dia,
-  exportação **.xlsx** (abas: Lançamentos, Resumo por dia, Por categoria, Ponto, Uso do Claude, Por projeto)
+  exportação **.xlsx** (abas: Lançamentos, Resumo por dia, Por categoria, Ponto)
   e **CSV** (um por seção, em .zip; `;`/`,` decimal para Excel BR ou `,`/`.` internacional).
-- **Uso do Claude** — selecione a pasta `%USERPROFILE%\.claude\projects`; os `.jsonl` são lidos localmente
-  (nada é enviado) e o tempo ativo é estimado com o corte de ociosidade.
-- **Ajustes** — meta diária, meta semanal, corte de ociosidade; backup/restauração em .json.
+- **Ajustes** — meta diária e semanal; backup/restauração em .json; **importar `clock_data.txt`** do Clock em Java
+  (lançamentos, ponto, tarefa em andamento e metas; reimportar não duplica; configurações do Slack são ignoradas).
 
 > Os dados ficam no navegador em que foram lançados. Para trocar de computador/navegador,
 > use **Ajustes → Baixar backup** e **Restaurar backup**.
 
 ## Privacidade (o repositório é público)
 
-- O repositório contém **só o código** dos sistemas. Os dados (tarefas, ponto, uso do Claude)
+- O repositório contém **só o código** dos sistemas. Os dados (tarefas, ponto)
   ficam no **navegador de quem usa** e nunca são enviados ao GitHub nem a servidor algum.
 - O `.gitignore` bloqueia backups (`*backup*.json`), exportações (`.xlsx`, `.csv`, `.zip`),
   `clock_data.txt`, transcripts `.jsonl` e `.env`. Guarde material privado em `privado/` (ignorada).

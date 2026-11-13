@@ -32,7 +32,6 @@
       <button data-tab="tarefas" class="active">Tarefas</button>
       <button data-tab="ponto">Ponto</button>
       <button data-tab="relatorios">Relatórios</button>
-      <button data-tab="claude">Uso do Claude</button>
       <button data-tab="ajustes">Ajustes</button>
     </nav>
 
@@ -157,30 +156,7 @@
       </div>
       <div class="two-col">
         <div class="card"><h2>Por categoria</h2><table><thead><tr><th>Categoria</th><th class="num">Lanç.</th><th class="num">Qtd</th><th class="num">Horas</th></tr></thead><tbody id="r-cat"></tbody></table></div>
-        <div class="card"><h2>Resumo por dia</h2><table><thead><tr><th>Data</th><th class="num">Tarefas</th><th class="num">Ponto</th><th class="num">Claude</th></tr></thead><tbody id="r-day"></tbody></table></div>
-      </div>
-    </section>
-
-    <!-- ===================== CLAUDE ===================== -->
-    <section id="tab-claude" class="hidden">
-      <div class="card">
-        <h2>Uso estimado do Claude Code</h2>
-        <p class="small muted">
-          Selecione a pasta <code>%USERPROFILE%\.claude\projects</code> (no Windows, cole esse caminho na barra de endereço da janela de seleção).
-          Os arquivos <code>.jsonl</code> são lidos <b>só no seu navegador</b> — nada é enviado. Os eventos são ordenados por horário e os intervalos
-          entre eventos consecutivos são somados; intervalos maiores que o corte de ociosidade (Ajustes) são limitados a esse valor.
-          É uma estimativa de tempo ativo.
-        </p>
-        <div class="drop row" style="align-items:center">
-          <input type="file" id="claude-dir" webkitdirectory multiple>
-          <span id="claude-status" class="muted small"></span>
-        </div>
-      </div>
-      <div class="two-col">
-        <div class="card"><h2>Por dia</h2>
-          <div class="row" style="margin-bottom:8px"><select id="c-period"><option value="week">Semana</option><option value="month">Mês</option><option value="d30">Últimos 30 dias</option><option value="all">Tudo</option></select></div>
-          <table><thead><tr><th>Data</th><th class="num">Horas</th></tr></thead><tbody id="c-day"></tbody></table></div>
-        <div class="card"><h2>Por projeto</h2><table><thead><tr><th>Projeto</th><th class="num">Horas</th></tr></thead><tbody id="c-proj"></tbody></table></div>
+        <div class="card"><h2>Resumo por dia</h2><table><thead><tr><th>Data</th><th class="num">Tarefas</th><th class="num">Ponto</th></tr></thead><tbody id="r-day"></tbody></table></div>
       </div>
     </section>
 
@@ -191,9 +167,18 @@
         <form id="settings-form" class="row">
           <label class="field">Meta diária (h)<input id="s-daily" type="number" min="0" step="0.25"></label>
           <label class="field">Meta semanal (h)<input id="s-weekly" type="number" min="0" step="0.25"></label>
-          <label class="field">Corte de ociosidade (min)<input id="s-idle" type="number" min="1" step="1"></label>
           <button class="primary" type="submit">Salvar</button>
         </form>
+      </div>
+      <div class="card">
+        <h2>Importar do Clock (Java)</h2>
+        <p class="small muted">Selecione o <code>clock_data.txt</code> da pasta do Clock antigo. Lançamentos, ponto, tarefa em andamento e metas
+          são trazidos; registros já existentes (mesmo horário de início) são ignorados, então pode importar de novo sem duplicar.
+          Configurações do Slack (inclusive o token) são <b>ignoradas</b>. O arquivo é lido só no navegador.</p>
+        <div class="row" style="align-items:center">
+          <label class="btn">Escolher clock_data.txt<input type="file" id="import-java" accept=".txt,text/plain" hidden></label>
+          <span id="import-status" class="small muted"></span>
+        </div>
       </div>
       <div class="card">
         <h2>Dados</h2>

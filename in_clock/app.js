@@ -9,7 +9,7 @@
   // ===================== Estado =====================
   const defaults = () => ({
     v: 1,
-    settings: { dailyTarget: 8, weeklyTarget: 40, idleCap: 5 },
+    settings: { dailyTarget: 8, weeklyTarget: 40 },
     nextId: 1,
     // {id, name, category, quantity, date, start, end, acc, resumedAt, pausedByPonto}
     // acc = segundos acumulados; resumedAt = ms enquanto corre; end = null => em andamento
@@ -17,8 +17,6 @@
     // 'YYYY-MM-DD' -> {in, out, breaks:[{start, end}]}  (timestamps em ms)
     days: {},
     meeting: null, // {start, name}
-    // resultado do último import: {days: {date: {project: secs}}, importedAt}
-    claude: null,
   });
 
   function load() {
@@ -169,54 +167,6 @@
     stopTask();
   }
 
-  // ===================== Claude =====================
-  /** Lê os .jsonl selecionados e agrega {date: {projeto: segundos}}. */
-  async function importClaude(files) {
-    const status = $('claude-status');
-    const list = [...files].filter((f) => f.name.endsWith('.jsonl'));
-    if (!list.length) { status.textContent = 'Nenhum arquivo .jsonl encontrado nessa pasta.'; return; }
-    const events = [];
-    let i = 0;
-    for (const f of list) {
-      status.textContent = `Lendo ${++i}/${list.length}…`;
-      const rel = f.webkitRelativePath || f.name;
-      const parts = rel.split('/');
-      let project = parts.length >= 2 ? parts[parts.length - 2] : 'sem projeto';
-      const text = await f.text();
-      for (const line of text.split('\n')) {
-        if (!line.trim()) continue;
-        let o; try { o = JSON.parse(line); } catch { continue; }
-        if (!o.timestamp) continue;
-        const t = Date.parse(o.timestamp); if (isNaN(t)) continue;
-        if (o.cwd) project = String(o.cwd).split(/[\\/]/).filter(Boolean).pop() || project;
-        events.push([t, project]);
-      }
-    }
-    events.sort((a, b) => a[0] - b[0]);
-    const cap = S.settings.idleCap * 60;
-    const days = {};
-    for (let k = 1; k < events.length; k++) {
-      const gap = Math.min((events[k][0] - events[k - 1][0]) / 1000, cap);
-      if (gap <= 0) continue;
-      const date = ymd(new Date(events[k][0])), proj = events[k][1];
-      days[date] = days[date] || {};
-      days[date][proj] = (days[date][proj] || 0) + gap;
-    }
-    S.claude = { days, importedAt: Date.now(), files: list.length, events: events.length };
-    save(); renderClaude();
-  }
-  function claudeByDay(rg) {
-    const out = {};
-    for (const [date, projs] of Object.entries(S.claude?.days || {})) if (inRange(date, rg)) out[date] = Object.values(projs).reduce((a, b) => a + b, 0);
-    return out;
-  }
-  function claudeByProject(rg) {
-    const out = {};
-    for (const [date, projs] of Object.entries(S.claude?.days || {})) if (inRange(date, rg))
-      for (const [p, s] of Object.entries(projs)) out[p] = (out[p] || 0) + s;
-    return out;
-  }
-
   // ===================== Relatórios / exportação =====================
   function reportData(rg) {
     const entries = S.entries.filter((e) => inRange(e.date, rg)).sort((a, b) => a.start - b.start);
@@ -226,15 +176,14 @@
       cats[k] = cats[k] || { n: 0, qty: 0, sec: 0 };
       cats[k].n++; cats[k].qty += Number(e.quantity) || 0; cats[k].sec += entryDur(e);
     }
-    const claudeDay = claudeByDay(rg);
-    const dates = new Set([...entries.map((e) => e.date), ...Object.keys(S.days).filter((d) => inRange(d, rg) && S.days[d].in), ...Object.keys(claudeDay)]);
+    const dates = new Set([...entries.map((e) => e.date), ...Object.keys(S.days).filter((d) => inRange(d, rg) && S.days[d].in)]);
     const byDay = [...dates].sort().map((d) => ({
       date: d,
       tasks: entries.filter((e) => e.date === d).reduce((s, e) => s + entryDur(e), 0),
-      ponto: dayWorked(d), claude: claudeDay[d] || 0,
+      ponto: dayWorked(d),
     }));
     const pontoDays = Object.keys(S.days).filter((d) => inRange(d, rg) && S.days[d].in).sort();
-    return { entries, cats, byDay, pontoDays, claudeDay, claudeProj: claudeByProject(rg) };
+    return { entries, cats, byDay, pontoDays };
   }
 
   function sheetsFor(rg) {
@@ -244,15 +193,13 @@
       { name: 'Lançamentos', rows: [['Data', 'Início', 'Fim', 'Nome', 'Categoria', 'Quantidade', 'Horas', 'Duração'],
         ...r.entries.map((e) => [brDate(e.date), e.manual ? '' : hm(e.start), e.end && !e.manual ? hm(e.end) : (e.end ? '' : 'em andamento'),
           e.name, e.category || '', e.quantity === '' || e.quantity == null ? '' : Number(e.quantity), hours(entryDur(e)), fmtDur(entryDur(e))])] },
-      { name: 'Resumo por dia', rows: [['Data', 'Tarefas (h)', 'Ponto (h)', 'Claude (h)'],
-        ...r.byDay.map((d) => [brDate(d.date), hours(d.tasks), hours(d.ponto), hours(d.claude)])] },
+      { name: 'Resumo por dia', rows: [['Data', 'Tarefas (h)', 'Ponto (h)'],
+        ...r.byDay.map((d) => [brDate(d.date), hours(d.tasks), hours(d.ponto)])] },
       { name: 'Por categoria', rows: [['Categoria', 'Lançamentos', 'Quantidade', 'Horas'],
         ...Object.entries(r.cats).sort((a, b) => b[1].sec - a[1].sec).map(([k, v]) => [k, v.n, v.qty, hours(v.sec)])] },
       { name: 'Ponto', rows: [['Data', 'Dia', 'Entrada', 'Saída', 'Pausas (h)', 'Trabalhado (h)', 'Meta (h)', 'Saldo (h)'],
         ...r.pontoDays.map((d) => [brDate(d), WEEKDAYS[parseYmd(d).getDay()], hm(S.days[d].in), hm(S.days[d].out),
           hours(dayBreaks(d)), hours(dayWorked(d)), target, hours(dayBalance(d))])] },
-      { name: 'Uso do Claude', rows: [['Data', 'Horas'], ...Object.entries(r.claudeDay).sort().map(([d, s]) => [brDate(d), hours(s)])] },
-      { name: 'Por projeto', rows: [['Projeto', 'Horas (Claude)'], ...Object.entries(r.claudeProj).sort((a, b) => b[1] - a[1]).map(([p, s]) => [p, hours(s)])] },
     ];
   }
   const reportRange = () => range($('r-period').value, $('r-from').value, $('r-to').value);
@@ -260,7 +207,7 @@
 
   // ===================== Renderização =====================
   let tab = 'tarefas';
-  function renderAll() { renderLive(); renderTasks(); renderPonto(); renderReports(); renderClaude(); renderSettings(); }
+  function renderAll() { renderLive(); renderTasks(); renderPonto(); renderReports(); renderSettings(); }
 
   function renderLive() {
     const now = Date.now(), e = running();
@@ -351,26 +298,13 @@
     $('r-cat').innerHTML = Object.entries(r.cats).sort((a, b) => b[1].sec - a[1].sec)
       .map(([k, v]) => `<tr><td>${esc(k)}</td><td class="num">${v.n}</td><td class="num">${v.qty || ''}</td><td class="num">${fmtDur(v.sec, false)}</td></tr>`).join('')
       || '<tr><td colspan="4" class="muted">Sem dados.</td></tr>';
-    $('r-day').innerHTML = r.byDay.map((d) => `<tr><td>${brDate(d.date)}</td><td class="num">${fmtDur(d.tasks, false)}</td><td class="num">${fmtDur(d.ponto, false)}</td><td class="num">${fmtDur(d.claude, false)}</td></tr>`).join('')
-      || '<tr><td colspan="4" class="muted">Sem dados.</td></tr>';
-  }
-
-  function renderClaude() {
-    const c = S.claude;
-    $('claude-status').textContent = c ? `Última leitura: ${new Date(c.importedAt).toLocaleString('pt-BR')} — ${c.files} arquivos, ${c.events} eventos.` : 'Nenhuma leitura feita ainda.';
-    const rg = range($('c-period').value);
-    const byDay = claudeByDay(rg), byProj = claudeByProject(rg);
-    const total = Object.values(byDay).reduce((a, b) => a + b, 0);
-    $('c-day').innerHTML = Object.entries(byDay).sort().reverse().map(([d, s]) => `<tr><td>${brDate(d)}</td><td class="num">${fmtDur(s, false)}</td></tr>`).join('')
-      + (total ? `<tr><th>Total</th><th class="num">${fmtDur(total, false)}</th></tr>` : '<tr><td colspan="2" class="muted">Sem dados.</td></tr>');
-    $('c-proj').innerHTML = Object.entries(byProj).sort((a, b) => b[1] - a[1]).map(([p, s]) => `<tr><td>${esc(p)}</td><td class="num">${fmtDur(s, false)}</td></tr>`).join('')
-      || '<tr><td colspan="2" class="muted">Sem dados.</td></tr>';
+    $('r-day').innerHTML = r.byDay.map((d) => `<tr><td>${brDate(d.date)}</td><td class="num">${fmtDur(d.tasks, false)}</td><td class="num">${fmtDur(d.ponto, false)}</td></tr>`).join('')
+      || '<tr><td colspan="3" class="muted">Sem dados.</td></tr>';
   }
 
   function renderSettings() {
     $('s-daily').value = S.settings.dailyTarget;
     $('s-weekly').value = S.settings.weeklyTarget;
-    $('s-idle').value = S.settings.idleCap;
   }
 
   // ===================== Diálogos =====================
@@ -532,14 +466,11 @@
     Export.download(Export.zip(files), `in_clock_csv_${rangeLabel(rg)}.zip`);
   };
 
-  $('claude-dir').addEventListener('change', (ev) => importClaude(ev.target.files).catch((e) => { $('claude-status').textContent = 'Erro: ' + e.message; }));
-  $('c-period').addEventListener('change', renderClaude);
 
   $('settings-form').addEventListener('submit', (ev) => {
     ev.preventDefault();
     S.settings.dailyTarget = Number($('s-daily').value) || 0;
     S.settings.weeklyTarget = Number($('s-weekly').value) || 0;
-    S.settings.idleCap = Math.max(1, Number($('s-idle').value) || 5);
     save(); renderAll(); alert('Ajustes salvos.');
   });
   $('btn-backup').onclick = () => Export.download(new Blob([JSON.stringify(S, null, 2)], { type: 'application/json' }), `in_clock_backup_${today()}.json`);
@@ -557,6 +488,89 @@
     if (!confirm('Apagar TODOS os dados do in_clock neste navegador? Faça um backup antes.')) return;
     S = defaults(); save(); renderAll();
   };
+
+  // ===================== Importação do Clock (Java) =====================
+  // Formato: linhas separadas por TAB.
+  //   S chave valor                         configurações (slack_* são ignoradas)
+  //   E id início fim segundos origem projeto nome categoria qtd
+  //   R nome categoria qtd início pausas    tarefa em andamento (pausas "ini,fim;ini,fim")
+  //   J data entrada saída pausas           ponto do dia
+  function parseJavaData(text) {
+    const ts = (v) => { if (!v) return null; const t = Date.parse(v); return isNaN(t) ? null : t; };
+    const pairs = (v) => (v || '').split(';').filter((x) => x.trim()).map((x) => {
+      const [a, b] = x.split(','); return { start: ts(a), end: ts(b) };
+    }).filter((b) => b.start != null);
+    const num = (v) => (v === undefined || v === '' ? '' : Number(v));
+    const out = { settings: {}, entries: [], days: {}, running: null };
+    for (const line of text.split(/\r?\n/)) {
+      const f = line.split('\t');
+      switch (f[0]) {
+        case 'S':
+          if (f[1] === 'daily_target_hours') out.settings.dailyTarget = Number(f[2]);
+          if (f[1] === 'weekly_target_hours') out.settings.weeklyTarget = Number(f[2]);
+          break;
+        case 'E': {
+          const start = ts(f[2]), end = ts(f[3]);
+          if (start == null) break;
+          out.entries.push({ name: f[7] || '(sem nome)', category: f[8] || '', quantity: num(f[9]), project: f[6] || '',
+            date: f[2].slice(0, 10), start, end: end ?? start, acc: Number(f[4]) || 0, resumedAt: null,
+            manual: f[5] === 'manual' || undefined });
+          break;
+        }
+        case 'R': {
+          const start = ts(f[4]); if (start == null) break;
+          const pauses = pairs(f[5]);
+          // tempo efetivo = segmentos entre as pausas
+          let acc = 0, cursor = start, resumedAt = start, paused = false;
+          for (const p of pauses) {
+            acc += Math.max(0, p.start - cursor) / 1000;
+            if (p.end == null) { paused = true; resumedAt = null; break; }
+            cursor = resumedAt = p.end;
+          }
+          out.running = { name: f[1] || '(sem nome)', category: f[2] || '', quantity: num(f[3]), date: f[4].slice(0, 10),
+            start, end: null, acc, resumedAt: paused ? null : resumedAt, pausedByPonto: paused };
+          break;
+        }
+        case 'J':
+          if (!f[1]) break;
+          out.days[f[1]] = { in: ts(f[2]), out: ts(f[3]), breaks: pairs(f[4]) };
+          break;
+      }
+    }
+    return out;
+  }
+
+  function importJava(text) {
+    const d = parseJavaData(text);
+    if (!d.entries.length && !Object.keys(d.days).length) throw new Error('nenhum lançamento ou ponto encontrado — é mesmo o clock_data.txt?');
+    const starts = new Set(S.entries.map((e) => e.start));
+    let nE = 0, nD = 0, nSkip = 0;
+    for (const e of d.entries) {
+      if (starts.has(e.start)) { nSkip++; continue; }
+      S.entries.push(Object.assign({ id: S.nextId++ }, e)); starts.add(e.start); nE++;
+    }
+    let runMsg = '';
+    if (d.running && !starts.has(d.running.start)) {
+      if (running()) runMsg = ' A tarefa em andamento do arquivo foi ignorada (já há uma rodando aqui).';
+      else {
+        S.entries.push(Object.assign({ id: S.nextId++ }, d.running));
+        runMsg = ` Tarefa em andamento importada: "${d.running.name}" desde ${brDate(d.running.date)} — confira e pare/ajuste se necessário.`;
+      }
+    }
+    for (const [date, day] of Object.entries(d.days)) {
+      if (S.days[date]?.in) continue; // não sobrescreve ponto já lançado aqui
+      S.days[date] = day; nD++;
+    }
+    Object.assign(S.settings, Object.fromEntries(Object.entries(d.settings).filter(([, v]) => isFinite(v) && v > 0)));
+    save(); renderAll();
+    return `Importados: ${nE} lançamentos, ${nD} dias de ponto${nSkip ? ` (${nSkip} já existiam)` : ''}. Metas: ${S.settings.dailyTarget}h/dia, ${S.settings.weeklyTarget}h/semana.${runMsg}`;
+  }
+  $('import-java').addEventListener('change', async (ev) => {
+    const f = ev.target.files[0]; if (!f) return;
+    try { $('import-status').textContent = importJava(await f.text()); }
+    catch (e) { $('import-status').textContent = 'Não foi possível importar: ' + e.message; }
+    ev.target.value = '';
+  });
 
   // Atalhos de teste/depuração
   window.InClock = { get state() { return S; }, parseDur, fmtDur, range };
