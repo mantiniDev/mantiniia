@@ -1,0 +1,35 @@
+# ------------------------------------------------------------------
+# Repositório PÚBLICO: nada de dados pessoais ou de trabalho aqui.
+# Os sistemas guardam dados no navegador (localStorage), nunca no repo.
+# Estas regras impedem que backups/exportações sejam commitados por engano.
+# ------------------------------------------------------------------
+
+# Backups e exportações dos sistemas
+*_backup_*.json
+*backup*.json
+*.xlsx
+*.xls
+*.csv
+*.zip
+
+# Dados do Clock/in_clock em Java e transcripts do Claude
+clock_data.txt
+*_data.txt
+*.jsonl
+.claude/projects/
+
+# Pasta livre para material privado local (nunca vai para o GitHub)
+privado/
+private/
+
+# Segredos
+.env
+.env.*
+*.pem
+*.key
+secrets.*
+
+# Sistema
+.DS_Store
+Thumbs.db
+desktop.ini

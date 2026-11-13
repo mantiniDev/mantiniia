@@ -11,15 +11,16 @@ Cada sistema roda no navegador e guarda os dados **no próprio navegador** (loca
 index.html          portal (lista de sistemas)
 assets/base.css     visual compartilhado (cartões, botões, tabelas, modo escuro)
 assets/export.js    exportação sem bibliotecas: .xlsx, .csv e .zip
-assets/icon.svg     ícone
-clock/              Clock — tarefas, ponto/banco de horas, uso do Claude, relatórios
+assets/icon.svg     símbolo (logo) — também icon-512.png
+assets/logo.svg     logo completo (símbolo + nome)
+in_clock/           in_clock — tarefas, ponto/banco de horas, uso do Claude, relatórios
 CNAME               domínio (www.mantini.ia.br)
 ```
 
 ## Sistemas
 
-### Clock (`/clock/`)
-Versão web do Clock (Java/Swing). Mesmas funções:
+### in_clock (`/in_clock/`)
+Versão web do Clock (Java/Swing), renomeado para in_clock. Mesmas funções:
 
 - **Tarefas** — nome, categoria, quantidade; Iniciar/Parar; a tarefa pausa/retoma junto com o Ponto;
   reunião com cronômetro separado (categoria "reunião"); lançamento manual com duração (`1h30m`, `90m`, `1:30`);
@@ -37,6 +38,17 @@ Versão web do Clock (Java/Swing). Mesmas funções:
 > Os dados ficam no navegador em que foram lançados. Para trocar de computador/navegador,
 > use **Ajustes → Baixar backup** e **Restaurar backup**.
 
+## Privacidade (o repositório é público)
+
+- O repositório contém **só o código** dos sistemas. Os dados (tarefas, ponto, uso do Claude)
+  ficam no **navegador de quem usa** e nunca são enviados ao GitHub nem a servidor algum.
+- O `.gitignore` bloqueia backups (`*backup*.json`), exportações (`.xlsx`, `.csv`, `.zip`),
+  `clock_data.txt`, transcripts `.jsonl` e `.env`. Guarde material privado em `privado/` (ignorada).
+- **Nunca** coloque senhas, tokens ou dados de clientes/processos no código. Se um dia um sistema
+  precisar de dados online, eles vão para um banco com login (ex.: Supabase), não para o repositório.
+- Se algo sensível for commitado por engano, apagar o arquivo não basta (fica no histórico):
+  troque a credencial/segredo e peça ajuda para reescrever o histórico.
+
 ## Adicionar um novo sistema
 
 1. Crie uma pasta, ex.: `meu-sistema/index.html`.
@@ -52,13 +64,14 @@ python3 -m http.server 8000
 ```
 e abra http://localhost:8000.
 
-## Publicação (hospedagem + domínio)
+## Publicação (GitHub Pages + domínio)
 
-O site é estático, então qualquer hospedagem estática serve. Como o repositório é **privado**:
+1. *Settings → Pages → Build and deployment*: **Deploy from a branch**, branch `main`, pasta `/ (root)`.
+2. Em *Custom domain*, informe `www.mantini.ia.br` (o arquivo `CNAME` já está no repo) e marque **Enforce HTTPS**
+   quando o certificado ficar pronto.
+3. DNS no registro.br (zona de `mantini.ia.br`):
+   - `www` → **CNAME** `mantinidev.github.io`
+   - raiz (`mantini.ia.br`) → **A** `185.199.108.153`, `185.199.109.153`, `185.199.110.153`, `185.199.111.153`
+     (o GitHub redireciona a raiz para o `www`).
 
-- **Cloudflare Pages** (gratuito com repo privado — recomendado): *Workers & Pages → Create → Pages →
-  Connect to Git* → escolha `mantiniDev/mantiniia`, build command vazio, output directory `/`.
-  Depois, em *Custom domains*, adicione `www.mantini.ia.br` (e `mantini.ia.br` com redirecionamento).
-- **GitHub Pages**: em repositório privado exige plano pago (ou tornar o repo público — ele não contém dados
-  pessoais, os dados ficam nos navegadores). *Settings → Pages → Deploy from branch `main` / root*.
-  DNS no registro.br: `www` → CNAME `mantinidev.github.io`; raiz → A `185.199.108.153`, `.109.153`, `.110.153`, `.111.153`.
+Cada push no `main` publica a nova versão em ~1 minuto.

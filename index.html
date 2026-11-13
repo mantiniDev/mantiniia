@@ -6,6 +6,8 @@
   <title>mantini.ia.br — sistemas</title>
   <link rel="stylesheet" href="assets/base.css">
   <link rel="icon" href="assets/icon.svg">
+  <link rel="apple-touch-icon" href="assets/icon-512.png">
+  <meta property="og:image" content="https://www.mantini.ia.br/assets/icon-512.png">
   <style>
     .sys { display: flex; flex-direction: column; gap: 8px; color: var(--text); }
     .sys:hover { border-color: var(--accent); text-decoration: none; }
@@ -15,13 +17,13 @@
   </style>
 </head>
 <body>
-  <header class="topbar"><span class="brand">mantini.ia.br</span><span class="sep">/</span><span class="muted">sistemas</span></header>
+  <header class="topbar"><a class="brand" href="./"><img src="assets/icon.svg" alt=""><span>mantini<span class="ia">.ia</span><span class="tld">.br</span></span></a><span class="sep">/</span><span class="muted">sistemas</span></header>
   <main>
     <p class="muted">Ferramentas simples para o dia a dia de trabalho. Os dados ficam no seu navegador.</p>
     <div class="grid">
-      <a class="card sys" href="clock/">
+      <a class="card sys" href="in_clock/">
         <span class="ico">⏱️</span>
-        <h3>Clock</h3>
+        <h3>in_clock</h3>
         <span class="muted small">Cronômetro de tarefas (categoria e quantidade), ponto com banco de horas, uso do Claude Code e exportação para .xlsx/CSV.</span>
       </a>
       <!-- Novo sistema: copie o bloco acima, aponte o href para a pasta do sistema. -->

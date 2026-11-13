@@ -1,9 +1,9 @@
-// Clock — versão web do controle de horário e tarefas.
+// in_clock — versão web do controle de horário e tarefas.
 // Dados ficam no localStorage deste navegador (chave STORE_KEY).
 (function () {
   'use strict';
 
-  const STORE_KEY = 'mantini.clock.v1';
+  const STORE_KEY = 'mantini.in_clock.v1';
   const $ = (id) => document.getElementById(id);
 
   // ===================== Estado =====================
@@ -23,7 +23,7 @@
 
   function load() {
     try {
-      const raw = localStorage.getItem(STORE_KEY);
+      const raw = localStorage.getItem(STORE_KEY) ?? localStorage.getItem('mantini.clock.v1');
       if (!raw) return defaults();
       const s = Object.assign(defaults(), JSON.parse(raw));
       s.settings = Object.assign(defaults().settings, s.settings);
@@ -293,7 +293,7 @@
     $('p-week').textContent = fmtDur(wWorked, false);
     setBal($('p-week-bal'), wWorked - S.settings.weeklyTarget * 3600);
 
-    document.title = (e && e.resumedAt ? `▶ ${fmtDur(entryDur(e, now))} · ` : '') + 'Clock — mantini.ia.br';
+    document.title = (e && e.resumedAt ? `▶ ${fmtDur(entryDur(e, now))} · ` : '') + 'in_clock — mantini.ia.br';
   }
   function setBal(el, sec) {
     if (sec == null) { el.textContent = '—'; el.className = ''; return; }
@@ -523,13 +523,13 @@
   ['r-period', 'r-from', 'r-to'].forEach((id) => $(id).addEventListener('change', renderReports));
   $('btn-xlsx').onclick = () => {
     const rg = reportRange();
-    Export.download(Export.xlsx(sheetsFor(rg)), `clock_${rangeLabel(rg)}.xlsx`);
+    Export.download(Export.xlsx(sheetsFor(rg)), `in_clock_${rangeLabel(rg)}.xlsx`);
   };
   $('btn-csv').onclick = () => {
     const rg = reportRange(), sep = $('r-sep').value;
     const slug = (s) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '_');
     const files = sheetsFor(rg).map((s) => ({ name: `${slug(s.name)}.csv`, data: Export.csv(s.rows, sep) }));
-    Export.download(Export.zip(files), `clock_csv_${rangeLabel(rg)}.zip`);
+    Export.download(Export.zip(files), `in_clock_csv_${rangeLabel(rg)}.zip`);
   };
 
   $('claude-dir').addEventListener('change', (ev) => importClaude(ev.target.files).catch((e) => { $('claude-status').textContent = 'Erro: ' + e.message; }));
@@ -542,24 +542,24 @@
     S.settings.idleCap = Math.max(1, Number($('s-idle').value) || 5);
     save(); renderAll(); alert('Ajustes salvos.');
   });
-  $('btn-backup').onclick = () => Export.download(new Blob([JSON.stringify(S, null, 2)], { type: 'application/json' }), `clock_backup_${today()}.json`);
+  $('btn-backup').onclick = () => Export.download(new Blob([JSON.stringify(S, null, 2)], { type: 'application/json' }), `in_clock_backup_${today()}.json`);
   $('restore').addEventListener('change', async (ev) => {
     const f = ev.target.files[0]; if (!f) return;
     try {
       const data = JSON.parse(await f.text());
-      if (!data || !Array.isArray(data.entries) || typeof data.days !== 'object') throw new Error('arquivo não parece um backup do Clock');
+      if (!data || !Array.isArray(data.entries) || typeof data.days !== 'object') throw new Error('arquivo não parece um backup do in_clock');
       if (!confirm('Substituir todos os dados atuais pelo backup?')) return;
       localStorage.setItem(STORE_KEY, JSON.stringify(data)); S = load(); renderAll();
     } catch (e) { alert('Não foi possível restaurar: ' + e.message); }
     ev.target.value = '';
   });
   $('btn-wipe').onclick = () => {
-    if (!confirm('Apagar TODOS os dados do Clock neste navegador? Faça um backup antes.')) return;
+    if (!confirm('Apagar TODOS os dados do in_clock neste navegador? Faça um backup antes.')) return;
     S = defaults(); save(); renderAll();
   };
 
   // Atalhos de teste/depuração
-  window.Clock = { get state() { return S; }, parseDur, fmtDur, range };
+  window.InClock = { get state() { return S; }, parseDur, fmtDur, range };
 
   // ===================== Loop =====================
   renderAll();
