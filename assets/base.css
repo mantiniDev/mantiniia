@@ -95,3 +95,10 @@ dialog .actions { display: flex; justify-content: flex-end; gap: 8px; margin-top
 .topbar .brand img { width: 28px; height: 28px; }
 .topbar .brand .ia { color: var(--accent); }
 .topbar .brand .tld { color: var(--muted); font-weight: 500; }
+
+/* Páginas protegidas ficam ocultas até o login ser confirmado */
+html.auth-pending body > main { visibility: hidden; }
+#user-slot { display: flex; align-items: center; gap: 10px; }
+#user-slot button, #user-slot .btn { padding: 5px 12px; font-size: 13px; }
+.notice { padding: 10px 14px; border-radius: 10px; background: var(--accent-soft); color: var(--text); margin-bottom: 14px; }
+.error { color: var(--danger); }

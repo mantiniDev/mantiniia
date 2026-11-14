@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Processos — mantini.ia.br</title>
+  <link rel="stylesheet" href="../assets/base.css">
+  <link rel="icon" href="../assets/icon.svg">
+  <style>
+    .toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; margin-bottom: 14px; }
+    .toolbar .grow { flex: 1; min-width: 200px; }
+    tbody tr.click { cursor: pointer; }
+    .stale { color: var(--danger); font-weight: 600; }
+    .ok-age { color: var(--muted); }
+    .pill { display: inline-block; padding: 1px 9px; border-radius: 999px; font-size: 12px; background: var(--line); color: var(--muted); }
+    .pill.ativo { background: #dcfce7; color: #166534; }
+    .pill.suspenso { background: #fef3c7; color: #92400e; }
+    .head { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; }
+    .head h1 { margin: 0; font-size: 20px; font-variant-numeric: tabular-nums; }
+    .kv { display: flex; flex-wrap: wrap; gap: 28px; }
+    .kv div span { display: block; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .03em; }
+    .kv div b { font-size: 18px; }
+    .two { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    @media (max-width: 860px) { .two { grid-template-columns: 1fr; } }
+    .drop { display: block; cursor: pointer; border: 2px dashed var(--line); border-radius: var(--radius); padding: 16px; text-align: center; color: var(--muted); margin-bottom: 12px; }
+    .drop.over { border-color: var(--accent); background: var(--accent-soft); }
+    .timeline { list-style: none; margin: 0; padding: 0; }
+    .timeline li { border-left: 3px solid var(--line); padding: 4px 0 12px 14px; position: relative; }
+    .timeline li:first-child { border-left-color: var(--accent); }
+    .timeline li .when { font-weight: 600; font-variant-numeric: tabular-nums; }
+    .timeline li .acts { float: right; }
+    .timeline li .acts button, td.actions button { padding: 3px 10px; font-size: 12px; }
+    td.actions { white-space: nowrap; text-align: right; }
+    dialog.viewer { width: min(1100px, 96vw); height: 92vh; padding: 12px; }
+    dialog.viewer[open] { display: flex; flex-direction: column; gap: 8px; }
+    dialog.viewer .frame { flex: 1; border: 1px solid var(--line); border-radius: 8px; background: #fff; overflow: auto; display: flex; align-items: center; justify-content: center; }
+    dialog.viewer iframe { width: 100%; height: 100%; border: 0; }
+    dialog.viewer img { max-width: 100%; max-height: 100%; }
+    #toast { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); background: var(--text); color: var(--bg); padding: 10px 16px; border-radius: 10px; font-size: 14px; display: none; z-index: 10; }
+    .field small { color: var(--muted); }
+    form .stack { display: flex; flex-direction: column; gap: 10px; }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="../"><img src="../assets/icon.svg" alt=""><span>mantini<span class="ia">.ia</span><span class="tld">.br</span></span></a><span class="sep">/</span><a href="#/" style="color:var(--text)">Processos</a>
+    <span class="spacer"></span>
+    <span id="user-slot"></span>
+  </header>
+
+  <main>
+    <!-- ============ LISTA ============ -->
+    <section id="view-list">
+      <div id="alert-stale" class="notice hidden"></div>
+      <div class="toolbar">
+        <label class="field grow">Buscar<input id="q" placeholder="número, título, tribunal, documento…"></label>
+        <label class="field">Situação
+          <select id="f-status">
+            <option value="ativo">Ativos</option><option value="suspenso">Suspensos</option>
+            <option value="arquivado">Arquivados</option><option value="todos">Todos</option>
+          </select>
+        </label>
+        <label class="field" style="width:120px">Alerta após (dias)<input id="stale-days" type="number" min="1" step="1"></label>
+        <button id="btn-export">Exportar .xlsx</button>
+        <button class="primary" id="btn-new">Novo processo</button>
+      </div>
+      <div class="card">
+        <table>
+          <thead><tr><th>Número</th><th>Tribunal</th><th>Título / partes</th><th>Última publicação</th><th>Documento atual</th><th class="num">Docs</th><th class="num">Atualizado há</th></tr></thead>
+          <tbody id="list-body"><tr><td colspan="7" class="muted">Carregando…</td></tr></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ============ DETALHE ============ -->
+    <section id="view-detail" class="hidden">
+      <p><a href="#/">← Todos os processos</a></p>
+      <div id="alert-proc" class="notice hidden"></div>
+      <div class="card">
+        <div class="head">
+          <div>
+            <h1 id="d-numero"></h1>
+            <div class="muted" id="d-sub"></div>
+          </div>
+          <div class="row">
+            <button id="d-copy" title="Copiar o número para consultar no jus.br">Copiar número</button>
+            <a class="btn" href="https://www.jus.br" target="_blank" rel="noopener">Abrir jus.br ↗</a>
+            <button id="d-edit">Editar</button>
+            <button class="danger" id="d-del">Excluir</button>
+          </div>
+        </div>
+        <p id="d-obs" class="small muted" style="white-space:pre-wrap"></p>
+      </div>
+
+      <div class="card">
+        <div class="head">
+          <div class="kv">
+            <div><span>Última publicação</span><b id="d-ultpub">—</b></div>
+            <div><span>Documento atual</span><b id="d-docatual">—</b></div>
+            <div><span>Atualizado há</span><b id="d-idade">—</b></div>
+          </div>
+          <button class="primary" id="d-andamento">Registrar andamento</button>
+        </div>
+      </div>
+
+      <div class="two">
+        <div class="card">
+          <h2>Documentos</h2>
+          <label class="drop" id="drop">
+            <input type="file" id="files" multiple hidden>
+            Arraste aqui os arquivos baixados do tribunal ou <u>clique para escolher</u><br>
+            <span class="small">PDF, imagens, Word… até 50 MB cada</span>
+          </label>
+          <table>
+            <thead><tr><th>Arquivo</th><th>Enviado em</th><th class="num">Tamanho</th><th></th></tr></thead>
+            <tbody id="docs-body"></tbody>
+          </table>
+        </div>
+        <div class="card">
+          <h2>Histórico de andamentos</h2>
+          <ul class="timeline" id="timeline"></ul>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Processo -->
+  <dialog id="dlg-proc">
+    <form method="dialog" id="form-proc">
+      <h2 style="margin-top:0" id="proc-title">Novo processo</h2>
+      <div class="stack">
+        <label class="field">Número (CNJ)<input id="p-numero" required placeholder="0000000-00.0000.0.00.0000"><small id="p-numero-hint"></small></label>
+        <label class="field">Tribunal<input id="p-tribunal" placeholder="preenchido pelo número; pode alterar"></label>
+        <label class="field">Título / partes<input id="p-titulo" placeholder="ex.: Fulano x Empresa"></label>
+        <label class="field">Situação
+          <select id="p-status"><option value="ativo">Ativo</option><option value="suspenso">Suspenso</option><option value="arquivado">Arquivado</option></select>
+        </label>
+        <label class="field">Observações<textarea id="p-obs" rows="3" style="font:inherit;border:1px solid var(--line);border-radius:8px;padding:8px;background:var(--bg);color:var(--text)"></textarea></label>
+      </div>
+      <div class="actions">
+        <button value="cancel" formnovalidate>Cancelar</button>
+        <button value="ok" class="primary">Salvar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Andamento -->
+  <dialog id="dlg-and">
+    <form method="dialog" id="form-and">
+      <h2 style="margin-top:0" id="and-title">Registrar andamento</h2>
+      <p class="small muted" id="and-hint"></p>
+      <div class="stack">
+        <label class="field">Data da última publicação<input id="a-data" type="date" required></label>
+        <label class="field">Documento em que o processo está<input id="a-doc" list="doc-names" required placeholder="ex.: Sentença, Contestação, Despacho…"></label>
+        <label class="field">Observação<input id="a-obs" placeholder="opcional"></label>
+      </div>
+      <datalist id="doc-names"></datalist>
+      <div class="actions">
+        <button value="cancel" formnovalidate>Agora não</button>
+        <button value="ok" class="primary">Salvar andamento</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Visualizador -->
+  <dialog id="dlg-view" class="viewer">
+    <div class="row" style="justify-content:space-between; align-items:center">
+      <b id="v-name"></b>
+      <div class="row"><a class="btn" id="v-download" href="#">Baixar</a><a class="btn" id="v-open" href="#" target="_blank" rel="noopener">Abrir em nova aba ↗</a><button id="v-close">Fechar</button></div>
+    </div>
+    <div class="frame" id="v-frame"></div>
+  </dialog>
+
+  <div id="toast" role="status"></div>
+
+  <script src="../assets/vendor/supabase-2.119.0.js"></script>
+  <script src="../assets/config.js"></script>
+  <script src="../assets/auth.js" data-root="../" data-protect></script>
+  <script src="../assets/export.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

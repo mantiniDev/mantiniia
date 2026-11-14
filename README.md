@@ -2,8 +2,8 @@
 
 Portal com sistemas simples de uso no trabalho, publicado em **https://www.mantini.ia.br**.
 
-Tudo é **HTML + CSS + JavaScript puro** — sem build, sem dependências, sem servidor.
-Cada sistema roda no navegador e guarda os dados **no próprio navegador** (localStorage).
+Tudo é **HTML + CSS + JavaScript puro**, sem build. O acesso aos sistemas exige **login (e-mail e senha)**,
+feito pelo **Supabase** (projeto `mantini-ia`), que também guarda os dados e arquivos dos sistemas que precisam de servidor.
 
 ## Estrutura
 
@@ -14,7 +14,13 @@ assets/export.js    exportação sem bibliotecas: .xlsx, .csv e .zip
 assets/icon.svg     símbolo (logo) — também icon-512.png
 assets/logo.svg     logo completo (símbolo + nome)
 assets/fonts/       Orbitron (fonte do logo, licença OFL)
+assets/config.js    endereço e chave pública do Supabase
+assets/auth.js      login compartilhado (protege as páginas, mostra usuário/Sair)
+assets/vendor/      supabase-js 2.119.0 (MIT) hospedado no site
+login/              tela de login e recuperação de senha
 in_clock/           in_clock — tarefas, ponto/banco de horas, relatórios
+processos/          Processos — controle pessoal de processos e documentos
+supabase/migrations estrutura do banco (tabelas, regras de acesso, armazenamento)
 CNAME               domínio (www.mantini.ia.br)
 ```
 
@@ -38,10 +44,37 @@ Versão web do Clock (Java/Swing), renomeado para in_clock. Mesmas funções:
 > Os dados ficam no navegador em que foram lançados. Para trocar de computador/navegador,
 > use **Ajustes → Baixar backup** e **Restaurar backup**.
 
+### Processos (`/processos/`)
+Controle pessoal de processos judiciais:
+
+- cadastro pelo número CNJ (formata, confere o dígito verificador e sugere o tribunal);
+- **documentos** baixados do tribunal: arraste para o processo, visualize (PDF/imagem) ou baixe;
+- **andamento**: data da última publicação + em qual documento o processo está. Ao carregar documentos,
+  o sistema sempre pede o andamento; processos sem andamento há N dias (padrão 7) ficam em destaque;
+- histórico de andamentos, busca, filtro por situação e exportação .xlsx.
+
+Dados no Supabase (tabelas `processos`, `andamentos`, `documentos`) e arquivos no bucket **privado**
+`documentos`. Regras RLS garantem que cada usuário só vê, envia e apaga o que é seu.
+
+## Login
+
+- Sem cadastro aberto: os acessos são criados no painel do Supabase (*Authentication → Users → Add user*).
+- Todas as páginas de sistema carregam `assets/auth.js` com `data-protect`: sem sessão, vão para `/login/`.
+- "Esqueci minha senha" envia um link por e-mail que abre `/login/` para definir uma nova senha.
+- Para proteger um sistema novo, inclua no fim da página:
+  ```html
+  <script src="../assets/vendor/supabase-2.119.0.js"></script>
+  <script src="../assets/config.js"></script>
+  <script src="../assets/auth.js" data-root="../" data-protect></script>
+  ```
+  e um `<span id="user-slot"></span>` na barra do topo.
+
 ## Privacidade (o repositório é público)
 
-- O repositório contém **só o código** dos sistemas. Os dados (tarefas, ponto)
-  ficam no **navegador de quem usa** e nunca são enviados ao GitHub nem a servidor algum.
+- O repositório contém **só o código**. Os dados do in_clock ficam no navegador de quem usa; os processos e
+  documentos ficam no Supabase, acessíveis só com login e só para o dono. Nada disso vai para o GitHub.
+- A chave em `assets/config.js` é a chave **pública** (publishable) do Supabase, feita para ficar no navegador.
+  A chave secreta (service_role) **nunca** deve entrar no repositório.
 - O `.gitignore` bloqueia backups (`*backup*.json`), exportações (`.xlsx`, `.csv`, `.zip`),
   `clock_data.txt`, transcripts `.jsonl` e `.env`. Guarde material privado em `privado/` (ignorada).
 - **Nunca** coloque senhas, tokens ou dados de clientes/processos no código. Se um dia um sistema

@@ -14,19 +14,26 @@
     .sys .ico { font-size: 28px; }
     .sys h3 { margin: 0; font-size: 17px; }
     .soon { opacity: .55; pointer-events: none; }
+    .sys .lock { display: none; font-size: 12px; }
+    body.anon .sys .lock { display: inline; }
   </style>
 </head>
 <body>
-  <header class="topbar"><a class="brand" href="./"><img src="assets/icon.svg" alt=""><span>mantini<span class="ia">.ia</span><span class="tld">.br</span></span></a><span class="sep">/</span><span class="muted">sistemas</span></header>
+  <header class="topbar"><a class="brand" href="./"><img src="assets/icon.svg" alt=""><span>mantini<span class="ia">.ia</span><span class="tld">.br</span></span></a><span class="sep">/</span><span class="muted">sistemas</span><span class="spacer"></span><span id="user-slot"></span></header>
   <main>
-    <p class="muted">Ferramentas simples para o dia a dia de trabalho. Os dados ficam no seu navegador.</p>
+    <p class="muted">Ferramentas simples para o dia a dia de trabalho. <span id="login-hint">Entre com seu e-mail e senha para acessar.</span></p>
     <div class="grid">
       <a class="card sys" href="in_clock/">
         <span class="ico">⏱️</span>
-        <h3>in_clock</h3>
+        <h3>in_clock <span class="lock">🔒</span></h3>
         <span class="muted small">Cronômetro de tarefas (categoria e quantidade), ponto com banco de horas e exportação para .xlsx/CSV.</span>
       </a>
-      <!-- Novo sistema: copie o bloco acima, aponte o href para a pasta do sistema. -->
+      <a class="card sys" href="processos/">
+        <span class="ico">⚖️</span>
+        <h3>Processos <span class="lock">🔒</span></h3>
+        <span class="muted small">Acompanhamento pessoal de processos: documentos baixados do tribunal, última publicação e em qual documento cada processo está.</span>
+      </a>
+      <!-- Novo sistema: copie um bloco acima e aponte o href para a pasta do sistema. -->
       <div class="card sys soon">
         <span class="ico">＋</span>
         <h3>Próximo sistema</h3>
@@ -34,5 +41,18 @@
       </div>
     </div>
   </main>
+  <script src="assets/vendor/supabase-2.119.0.js"></script>
+  <script src="assets/config.js"></script>
+  <script src="assets/auth.js" data-root="./"></script>
+  <script>
+    // Sem login: os cartões levam para a tela de login e depois para o sistema.
+    Auth.ready.then(({ user }) => {
+      document.body.classList.toggle('anon', !user);
+      document.getElementById('login-hint').classList.toggle('hidden', !!user);
+      if (!user) document.querySelectorAll('a.sys').forEach((a) => {
+        a.href = 'login/?next=' + encodeURIComponent(new URL(a.getAttribute('href'), location.href).pathname);
+      });
+    });
+  </script>
 </body>
 </html>

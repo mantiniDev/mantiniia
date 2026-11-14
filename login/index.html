@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Entrar — mantini.ia.br</title>
+  <link rel="stylesheet" href="../assets/base.css">
+  <link rel="icon" href="../assets/icon.svg">
+  <style>
+    .box { max-width: 380px; margin: 8vh auto; }
+    .box img.logo { display: block; width: 72px; margin: 0 auto 12px; }
+    .box form { display: flex; flex-direction: column; gap: 12px; }
+    .box button.primary { margin-top: 6px; }
+    .links { display: flex; justify-content: space-between; margin-top: 12px; font-size: 13px; }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="card box">
+      <img class="logo" src="../assets/icon.svg" alt="">
+      <h2 style="text-align:center" id="title">Entrar</h2>
+
+      <form id="f-login">
+        <label class="field">E-mail<input type="email" id="email" autocomplete="username" required></label>
+        <label class="field">Senha<input type="password" id="senha" autocomplete="current-password" required></label>
+        <button class="primary" type="submit">Entrar</button>
+      </form>
+
+      <form id="f-reset" class="hidden">
+        <p class="small muted">Informe seu e-mail. Você receberá um link para criar uma nova senha.</p>
+        <label class="field">E-mail<input type="email" id="email-reset" required></label>
+        <button class="primary" type="submit">Enviar link</button>
+      </form>
+
+      <form id="f-nova" class="hidden">
+        <label class="field">Nova senha<input type="password" id="nova1" autocomplete="new-password" minlength="8" required></label>
+        <label class="field">Repita a nova senha<input type="password" id="nova2" autocomplete="new-password" minlength="8" required></label>
+        <button class="primary" type="submit">Salvar senha</button>
+      </form>
+
+      <p id="msg" class="small" role="status"></p>
+      <div class="links">
+        <a href="../">← Início</a>
+        <a href="#" id="toggle-reset">Esqueci minha senha</a>
+      </div>
+    </div>
+  </main>
+
+  <script src="../assets/vendor/supabase-2.119.0.js"></script>
+  <script src="../assets/config.js"></script>
+  <script src="../assets/auth.js" data-root="../"></script>
+  <script>
+  (function () {
+    const $ = (id) => document.getElementById(id);
+    const sb = Auth.sb;
+    // capturado antes do Supabase limpar a URL do link de recuperação
+    const recovering = /type=recovery/.test(location.hash + location.search);
+    const params = new URLSearchParams(location.search);
+    // só aceita destino interno (evita redirecionar para outro site)
+    const next = (params.get('next') || '').startsWith('/') && !params.get('next').startsWith('//') ? params.get('next') : '../';
+    const msg = (t, err) => { $('msg').textContent = t; $('msg').className = 'small ' + (err ? 'error' : 'muted'); };
+    const show = (id, title) => {
+      ['f-login', 'f-reset', 'f-nova'].forEach((f) => $(f).classList.toggle('hidden', f !== id));
+      $('title').textContent = title; msg('');
+    };
+
+    const traduz = (e) => ({
+      'Invalid login credentials': 'E-mail ou senha incorretos.',
+      'Email not confirmed': 'E-mail ainda não confirmado.',
+    }[e.message] || e.message);
+
+    $('f-login').addEventListener('submit', async (ev) => {
+      ev.preventDefault(); msg('Entrando…');
+      const { error } = await sb.auth.signInWithPassword({ email: $('email').value.trim(), password: $('senha').value });
+      if (error) return msg(traduz(error), true);
+      location.href = next;
+    });
+
+    $('toggle-reset').addEventListener('click', (ev) => {
+      ev.preventDefault();
+      const toReset = $('f-reset').classList.contains('hidden');
+      show(toReset ? 'f-reset' : 'f-login', toReset ? 'Recuperar senha' : 'Entrar');
+      ev.target.textContent = toReset ? 'Voltar para o login' : 'Esqueci minha senha';
+      if (toReset) $('email-reset').value = $('email').value;
+    });
+
+    $('f-reset').addEventListener('submit', async (ev) => {
+      ev.preventDefault(); msg('Enviando…');
+      const { error } = await sb.auth.resetPasswordForEmail($('email-reset').value.trim(), { redirectTo: location.origin + location.pathname });
+      msg(error ? traduz(error) : 'Se o e-mail estiver cadastrado, o link chegará em instantes.', !!error);
+    });
+
+    // Link do e-mail de recuperação: o Supabase abre esta página com a sessão de recuperação.
+    sb.auth.onAuthStateChange((event) => { if (event === 'PASSWORD_RECOVERY') show('f-nova', 'Nova senha'); });
+
+    $('f-nova').addEventListener('submit', async (ev) => {
+      ev.preventDefault();
+      if ($('nova1').value !== $('nova2').value) return msg('As senhas não conferem.', true);
+      const { error } = await sb.auth.updateUser({ password: $('nova1').value });
+      if (error) return msg(traduz(error), true);
+      msg('Senha alterada. Redirecionando…'); setTimeout(() => (location.href = '../'), 1200);
+    });
+
+    if (recovering) show('f-nova', 'Nova senha');
+
+    // Já logado? vai direto.
+    Auth.ready.then(({ user }) => { if (user && !recovering) location.href = next; });
+  })();
+  </script>
+</body>
+</html>
