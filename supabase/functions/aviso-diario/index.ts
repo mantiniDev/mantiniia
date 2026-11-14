@@ -148,5 +148,8 @@ Deno.serve(async (req) => {
     const r = await enviar(u.email, subject, body);
     resultado.push({ email: u.email, subject, enviado: r.ok, erro: r.ok ? undefined : r.erro });
   }
+  // registro para conferência (sem endereço de e-mail): aparece em Edge Functions → Logs
+  console.log(JSON.stringify({ evento: 'aviso-diario', origem: teste ? 'teste' : 'agendador', dry,
+    resultado: resultado.map((r) => ({ enviado: (r as { enviado?: boolean }).enviado ?? false, motivo: (r as { motivo?: string }).motivo, erro: (r as { erro?: string }).erro })) }));
   return json({ dry, teste, resultado });
 });
