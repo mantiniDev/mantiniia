@@ -102,3 +102,7 @@ html.auth-pending body > main { visibility: hidden; }
 #user-slot button, #user-slot .btn { padding: 5px 12px; font-size: 13px; }
 .notice { padding: 10px 14px; border-radius: 10px; background: var(--accent-soft); color: var(--text); margin-bottom: 14px; }
 .error { color: var(--danger); }
+
+/* ícone do sistema na barra do topo */
+.topbar .sys-name { display: inline-flex; align-items: center; gap: 8px; color: var(--text); }
+.topbar .sys-name img { width: 24px; height: 24px; }

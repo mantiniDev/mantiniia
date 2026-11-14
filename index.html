@@ -11,7 +11,7 @@
   <style>
     .sys { display: flex; flex-direction: column; gap: 8px; color: var(--text); }
     .sys:hover { border-color: var(--accent); text-decoration: none; }
-    .sys .ico { font-size: 28px; }
+    .sys .ico { width: 52px; height: 52px; }
     .sys h3 { margin: 0; font-size: 17px; }
     .soon { opacity: .55; pointer-events: none; }
     .sys .lock { display: none; font-size: 12px; }
@@ -25,18 +25,18 @@
     <div id="aud-portal" class="notice hidden"></div>
     <div class="grid">
       <a class="card sys" href="in_clock/">
-        <span class="ico">⏱️</span>
+        <img class="ico" src="assets/sistemas/in_clock.svg" alt="">
         <h3>in_clock <span class="lock">🔒</span></h3>
         <span class="muted small">Cronômetro de tarefas (categoria e quantidade), ponto com banco de horas e exportação para .xlsx/CSV.</span>
       </a>
       <a class="card sys" href="processos/">
-        <span class="ico">⚖️</span>
+        <img class="ico" src="assets/sistemas/processos.svg" alt="">
         <h3>Processos <span class="lock">🔒</span></h3>
         <span class="muted small">Acompanhamento pessoal de processos: documentos baixados do tribunal, última publicação e em qual documento cada processo está.</span>
       </a>
       <!-- Novo sistema: copie um bloco acima e aponte o href para a pasta do sistema. -->
       <div class="card sys soon">
-        <span class="ico">＋</span>
+        <img class="ico" src="assets/sistemas/novo.svg" alt="">
         <h3>Próximo sistema</h3>
         <span class="muted small">Em breve.</span>
       </div>

@@ -13,6 +13,7 @@ assets/base.css     visual compartilhado (cartões, botões, tabelas, modo escur
 assets/export.js    exportação sem bibliotecas: .xlsx, .csv e .zip
 assets/agenda.js    audiências: contador de dias, notificações e arquivo de agenda (.ics)
 assets/icon.svg     símbolo (logo) — também icon-512.png
+assets/sistemas/    ícones dos sistemas (padrão do site + símbolo central)
 assets/logo.svg     logo completo (símbolo + nome)
 assets/fonts/       Orbitron (fonte do logo, licença OFL)
 assets/config.js    endereço e chave pública do Supabase
@@ -106,6 +107,10 @@ Dados no Supabase (tabelas `processos`, `andamentos`, `documentos`, `audiencias`
 2. Reaproveite o visual: `<link rel="stylesheet" href="../assets/base.css">`
    (e `<script src="../assets/export.js"></script>` se precisar exportar planilha).
 3. Adicione um cartão em `index.html` apontando para `meu-sistema/`.
+   **Ícone:** todo sistema usa o ícone padrão do site (círculo preto, anel vermelho, órbitas) trocando só o
+   símbolo central. Copie `assets/sistemas/novo.svg` para `assets/sistemas/meu-sistema.svg`, troque o desenho
+   central (branco, dentro de ~13 px do centro) e use o arquivo no cartão, no `<link rel="icon">` e na barra
+   do topo (`<span class="sys-name"><img src="../assets/sistemas/meu-sistema.svg" alt="">Nome</span>`).
 4. Use uma chave própria no localStorage (ex.: `mantini.meu-sistema.v1`).
 
 ## Rodar localmente
