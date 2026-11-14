@@ -257,7 +257,10 @@
     $('d-idade').textContent = p.ultimo_andamento_em ? idadeTxt(p) : 'sem andamento';
     $('d-idade').className = isStale(p) ? 'stale' : '';
     const pa = proxAud(audiencias);
-    $('d-proxaud').innerHTML = pa ? `${esc(dataCurta(pa.data_hora))} ${cdHtml(pa)}` : '—';
+    const pendente = audiencias.filter((x) => !x.realizada && Agenda.diasAte(x.data_hora) < 0)
+      .sort((x, y) => new Date(y.data_hora) - new Date(x.data_hora))[0];
+    $('d-proxaud').innerHTML = pa ? `${esc(dataCurta(pa.data_hora))} ${cdHtml(pa)}`
+      : pendente ? `<span title="Audiência com data passada e não marcada como realizada — confira a data">⚠️ ${esc(dataCurta(pendente.data_hora))} <span class="cd perto">já passou — conferir</span></span>` : '—';
 
     // futuras primeiro (mais próxima no topo), depois as passadas/realizadas (mais recente primeiro)
     const fut = audiencias.filter((x) => !x.realizada && Agenda.diasAte(x.data_hora) >= 0);
@@ -366,6 +369,12 @@
     if (ev.submitter?.value !== 'ok') return;
     ev.preventDefault();
     if (!$('au-data').value) return;
+    // data no passado sem marcar "realizada" quase sempre é erro de digitação (ex.: ano 2016 em vez de 2026)
+    const dt = new Date($('au-data').value);
+    if (!$('au-realizada').checked && Agenda.diasAte(dt.toISOString()) < 0) {
+      const quando = dt.toLocaleString('pt-BR', { dateStyle: 'full', timeStyle: 'short' });
+      if (!confirm(`A data informada já passou: ${quando}.\n\nSe foi erro de digitação (por exemplo, no ano), clique em Cancelar e corrija.\nSe é uma audiência antiga, clique em OK.`)) { $('au-data').focus(); return; }
+    }
     const row = { data_hora: new Date($('au-data').value).toISOString(), tipo: $('au-tipo').value.trim() || null,
       local: $('au-local').value.trim() || null, observacao: $('au-obs').value.trim() || null, realizada: $('au-realizada').checked };
     const q = editingAudId ? sb.from('audiencias').update(row).eq('id', editingAudId) : sb.from('audiencias').insert({ ...row, processo_id: atual.id });
