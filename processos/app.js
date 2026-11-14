@@ -122,9 +122,14 @@
 
     const stale = processos.filter(isStale);
     $('alert-stale').classList.toggle('hidden', !stale.length);
-    $('alert-stale').innerHTML = stale.length
-      ? `⚠️ <b>${stale.length}</b> processo(s) ativo(s) sem andamento registrado há ${staleDays()} dias ou mais. Abra cada um e informe a data da última publicação e o documento atual.`
-      : '';
+    // separa "nunca teve andamento" de "parado há N dias"
+    const nunca = stale.filter((p) => !p.ultimo_andamento_em);
+    const parados = stale.filter((p) => p.ultimo_andamento_em);
+    const lista = (arr) => arr.map((p) => `<a href="#/p/${p.id}">${esc(p.titulo || p.numero)}</a>`).join(', ');
+    $('alert-stale').innerHTML = [
+      nunca.length ? `📌 ${nunca.length === 1 ? 'Processo ainda sem andamento registrado' : `<b>${nunca.length}</b> processos ainda sem andamento registrado`}: ${lista(nunca)}. Informe a data da última publicação e o documento atual.` : '',
+      parados.length ? `⏰ ${parados.length === 1 ? 'Processo' : `<b>${parados.length}</b> processos`} sem novo andamento há ${staleDays()} dias ou mais: ${lista(parados)}.` : '',
+    ].filter(Boolean).join('<br>');
   }
 
   $('list-body').addEventListener('click', (ev) => { const tr = ev.target.closest('tr[data-id]'); if (tr) location.hash = '#/p/' + tr.dataset.id; });
