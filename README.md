@@ -13,6 +13,7 @@ assets/base.css     visual compartilhado (cartões, botões, tabelas, modo escur
 assets/export.js    exportação sem bibliotecas: .xlsx, .csv e .zip
 assets/icon.svg     símbolo (logo) — também icon-512.png
 assets/logo.svg     logo completo (símbolo + nome)
+assets/fonts/       Orbitron (fonte do logo, licença OFL)
 in_clock/           in_clock — tarefas, ponto/banco de horas, relatórios
 CNAME               domínio (www.mantini.ia.br)
 ```

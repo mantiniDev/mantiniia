@@ -251,9 +251,9 @@
   let lastFav = null;
   function setFavicon(st) {
     if (st === lastFav) return; lastFav = st;
-    const color = { on: '#16a34a', pause: '#d97706' }[st] || '#2563eb';
+    const color = { on: '#16a34a', pause: '#d97706' }[st] || '#e63946';
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><circle cx="32" cy="32" r="28" fill="${color}"/><circle cx="32" cy="32" r="22" fill="#fff"/><path d="M32 16v16l10 6" stroke="${color}" stroke-width="5" stroke-linecap="round" fill="none"/></svg>`;
-    $('favicon').href = 'data:image/svg+xml,' + encodeURIComponent(svg);
+    $('favicon').href = st === 'off' ? '../assets/icon.svg' : 'data:image/svg+xml,' + encodeURIComponent(svg);
   }
 
   function renderTasks() {

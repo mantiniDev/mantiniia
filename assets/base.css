@@ -1,3 +1,6 @@
+/* Orbitron (SIL Open Font License 1.1 — ver assets/fonts/OFL-Orbitron.txt) */
+@font-face { font-family: 'Orbitron'; font-weight: 800; font-display: swap; src: url('fonts/orbitron-800.woff2') format('woff2'); }
+
 /* Estilo compartilhado entre o portal e todos os sistemas. */
 :root {
   --bg: #f5f6f8;
@@ -5,11 +8,11 @@
   --text: #1d2129;
   --muted: #6b7280;
   --line: #e5e7eb;
-  --accent: #2563eb;
-  --accent-soft: #e8efff;
+  --accent: #e63946;
+  --accent-soft: #fdecee;
   --ok: #16a34a;
   --warn: #d97706;
-  --danger: #dc2626;
+  --danger: #b91c1c;
   --radius: 12px;
   --shadow: 0 1px 2px rgba(0,0,0,.04), 0 2px 8px rgba(0,0,0,.04);
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -18,7 +21,7 @@
 @media (prefers-color-scheme: dark) {
   :root {
     --bg: #111318; --card: #1a1d24; --text: #e6e8ec; --muted: #9aa1ad;
-    --line: #2a2f39; --accent: #6b9bff; --accent-soft: #1f2a44;
+    --line: #2a2f39; --accent: #ff5c66; --accent-soft: #3a1c20; --danger: #f87171;
     --shadow: none;
   }
 }
@@ -76,7 +79,7 @@ tr.running td { font-weight: 600; }
 .tabs button { border-radius: 999px; }
 .tabs button.active { background: var(--accent); color: #fff; border-color: var(--accent); }
 
-.badge { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 12px; background: var(--accent-soft); color: var(--accent); }
+.badge { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 12px; background: var(--line); color: var(--muted); }
 .badge.on { background: #dcfce7; color: #166534; }
 .badge.pause { background: #fef3c7; color: #92400e; }
 
@@ -88,7 +91,7 @@ dialog .actions { display: flex; justify-content: flex-end; gap: 8px; margin-top
 .big { font-size: 28px; font-weight: 700; font-variant-numeric: tabular-nums; }
 .hidden { display: none !important; }
 
-.topbar .brand { display: inline-flex; align-items: center; gap: 10px; letter-spacing: -.01em; }
+.topbar .brand { display: inline-flex; align-items: center; gap: 10px; font-family: 'Orbitron', system-ui, sans-serif; font-weight: 800; }
 .topbar .brand img { width: 28px; height: 28px; }
-.topbar .brand .ia { color: #7c3aed; }
+.topbar .brand .ia { color: var(--accent); }
 .topbar .brand .tld { color: var(--muted); font-weight: 500; }
