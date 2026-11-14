@@ -21,7 +21,8 @@ assets/vendor/      supabase-js 2.119.0 (MIT) hospedado no site
 login/              tela de login e recuperação de senha
 in_clock/           in_clock — tarefas, ponto/banco de horas, relatórios
 processos/          Processos — controle pessoal de processos e documentos
-supabase/migrations estrutura do banco (tabelas, regras de acesso, armazenamento)
+supabase/migrations estrutura do banco (tabelas, regras de acesso, armazenamento, agendador)
+supabase/functions  aviso-diario: monta e envia o e-mail diário (Resend)
 CNAME               domínio (www.mantini.ia.br)
 ```
 
@@ -57,9 +58,20 @@ Controle pessoal de processos judiciais:
   navegador (1 vez por dia, ao abrir o site); botão para adicionar à agenda (.ics com lembretes 1 dia e 2 h antes)
   ou ao Google Agenda;
 - histórico de andamentos, busca, filtro por situação e exportação .xlsx.
+- **dois tipos de arquivo**: *documentos de andamento* (acumulam) e *processo completo* (só a versão mais recente:
+  ao enviar um novo, o anterior é apagado do armazenamento, para não ocupar espaço);
+- **e-mail diário às 7h** (botão ✉️ Avisos): audiências próximas e processos sem andamento; só envia quando há algo.
 
 Dados no Supabase (tabelas `processos`, `andamentos`, `documentos`, `audiencias`) e arquivos no bucket **privado**
 `documentos`. Regras RLS garantem que cada usuário só vê, envia e apaga o que é seu.
+
+## E-mail diário
+
+- Agendador do banco (`pg_cron`) chama a função `aviso-diario` todo dia às 10:00 UTC (7h de Brasília),
+  com um código secreto guardado no Vault.
+- A função lê as preferências de cada usuário (tabela `preferencias`), monta o resumo e envia pelo **Resend**.
+- Segredos da função (Supabase → Edge Functions → Secrets): `RESEND_API_KEY` (obrigatório) e
+  `EMAIL_FROM` (opcional, ex.: `mantini.ia.br <avisos@mantini.ia.br>` depois de verificar o domínio no Resend).
 
 ## Login
 

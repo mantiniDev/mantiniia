@@ -59,6 +59,8 @@
 
     // Audiências próximas (sistema Processos)
     async function avisarAudiencias() {
+      const pf = await Auth.sb.from('preferencias').select('dias_aviso_audiencia').maybeSingle();
+      if (pf.data) Agenda.setAvisoDias(pf.data.dias_aviso_audiencia);
       const inicioHoje = new Date(); inicioHoje.setHours(0, 0, 0, 0);
       const { data, error } = await Auth.sb.from('audiencias')
         .select('id, data_hora, tipo, local, realizada, processos(id, numero, titulo)')

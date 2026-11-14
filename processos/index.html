@@ -77,8 +77,7 @@
             <option value="arquivado">Arquivados</option><option value="todos">Todos</option>
           </select>
         </label>
-        <label class="field" style="width:130px">Sem andamento (dias)<input id="stale-days" type="number" min="1" step="1"></label>
-        <label class="field" style="width:150px">Avisar audiência (dias)<input id="aud-days" type="number" min="1" step="1"></label>
+        <button id="btn-avisos">✉️ Avisos</button>
         <button id="btn-notif" class="hidden">🔔 Ativar notificações</button>
         <button id="btn-export">Exportar .xlsx</button>
         <button class="primary" id="btn-new">Novo processo</button>
@@ -124,6 +123,21 @@
       </div>
 
       <div class="card">
+        <div class="head">
+          <div>
+            <h2 style="margin:0 0 4px">Processo completo</h2>
+            <div id="completo-info" class="small muted"></div>
+          </div>
+          <div class="row" id="completo-acts"></div>
+        </div>
+        <label class="drop" id="drop-completo" style="margin:12px 0 0">
+          <input type="file" id="file-completo" hidden>
+          <span id="completo-drop-txt">Arraste aqui o PDF do processo completo ou <u>clique para escolher</u></span><br>
+          <span class="small">Só é guardada a versão mais recente: ao enviar um novo, o anterior é apagado.</span>
+        </label>
+      </div>
+
+      <div class="card">
         <div class="head" style="margin-bottom:6px">
           <h2 style="margin:0">Audiências</h2>
           <button class="primary" id="d-nova-aud">Nova audiência</button>
@@ -133,10 +147,10 @@
 
       <div class="two">
         <div class="card">
-          <h2>Documentos</h2>
+          <h2>Documentos de andamento</h2>
           <label class="drop" id="drop">
             <input type="file" id="files" multiple hidden>
-            Arraste aqui os arquivos baixados do tribunal ou <u>clique para escolher</u><br>
+            Arraste aqui os documentos do andamento (decisões, despachos, intimações…) ou <u>clique para escolher</u><br>
             <span class="small">PDF, imagens, Word… até 50 MB cada</span>
           </label>
           <table>
@@ -186,6 +200,24 @@
       <div class="actions">
         <button value="cancel" formnovalidate>Agora não</button>
         <button value="ok" class="primary">Salvar andamento</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Avisos -->
+  <dialog id="dlg-avisos">
+    <form method="dialog" id="form-avisos">
+      <h2 style="margin-top:0">Avisos</h2>
+      <div class="stack">
+        <label class="field">Avisar audiências com antecedência de (dias)<input id="pf-aud" type="number" min="1" max="90" step="1" required></label>
+        <label class="field">Destacar processos sem andamento há (dias)<input id="pf-stale" type="number" min="1" max="365" step="1" required></label>
+        <label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="pf-email"> Receber e-mail diário (7h) com audiências próximas e processos sem andamento</label>
+        <p class="small muted" style="margin:0">O e-mail só é enviado nos dias em que há algo a avisar, para o e-mail do seu login.</p>
+      </div>
+      <div class="actions">
+        <button type="button" id="pf-teste" style="margin-right:auto">Enviar e-mail de teste</button>
+        <button value="cancel" formnovalidate>Cancelar</button>
+        <button value="ok" class="primary">Salvar</button>
       </div>
     </form>
   </dialog>

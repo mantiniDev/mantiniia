@@ -31,7 +31,15 @@
   }
   const fail = (e) => { console.error(e); toast('Erro: ' + (e.message || e), true); };
 
-  const staleDays = () => Number(localStorage.getItem('mantini.processos.staleDays')) || 7;
+  // Preferências de aviso: ficam no servidor (tabela preferencias) para valerem também no e-mail diário.
+  let prefs = { email_diario: true, dias_aviso_audiencia: 7, dias_sem_andamento: 7 };
+  async function carregarPrefs() {
+    const { data, error } = await sb.from('preferencias').select('*').maybeSingle();
+    if (error) return fail(error);
+    if (data) prefs = data;
+    Agenda.setAvisoDias(prefs.dias_aviso_audiencia); // o portal e as notificações usam o mesmo prazo
+  }
+  const staleDays = () => prefs.dias_sem_andamento;
   // "atualizado há" conta a partir do último andamento registrado (ou do cadastro)
   const idade = (p) => diasDesde(p.ultimo_andamento_em || p.created_at);
   const isStale = (p) => p.status === 'ativo' && (!p.ultimo_andamento_em || idade(p) >= staleDays());
@@ -122,14 +130,32 @@
   $('list-body').addEventListener('click', (ev) => { const tr = ev.target.closest('tr[data-id]'); if (tr) location.hash = '#/p/' + tr.dataset.id; });
   $('q').addEventListener('input', renderLista);
   $('f-status').addEventListener('change', renderLista);
-  $('stale-days').value = staleDays();
-  $('stale-days').addEventListener('change', () => {
-    localStorage.setItem('mantini.processos.staleDays', Math.max(1, Number($('stale-days').value) || 7));
-    renderLista();
+  $('btn-avisos').addEventListener('click', () => {
+    $('pf-aud').value = prefs.dias_aviso_audiencia; $('pf-stale').value = prefs.dias_sem_andamento;
+    $('pf-email').checked = prefs.email_diario; $('dlg-avisos').showModal();
   });
-
-  $('aud-days').value = Agenda.avisoDias();
-  $('aud-days').addEventListener('change', () => { Agenda.setAvisoDias($('aud-days').value); renderLista(); });
+  $('form-avisos').addEventListener('submit', async (ev) => {
+    if (ev.submitter?.value !== 'ok') return;
+    ev.preventDefault();
+    const row = { user_id: user.id, email_diario: $('pf-email').checked,
+      dias_aviso_audiencia: Math.min(90, Math.max(1, Number($('pf-aud').value) || 7)),
+      dias_sem_andamento: Math.min(365, Math.max(1, Number($('pf-stale').value) || 7)), updated_at: new Date().toISOString() };
+    const { data, error } = await sb.from('preferencias').upsert(row).select().single();
+    if (error) return fail(error);
+    prefs = data; Agenda.setAvisoDias(prefs.dias_aviso_audiencia);
+    $('dlg-avisos').close(); toast('Avisos salvos.'); renderLista();
+  });
+  $('pf-teste').addEventListener('click', async () => {
+    const b = $('pf-teste'); b.disabled = true; b.textContent = 'Enviando…';
+    try {
+      const { data, error } = await sb.functions.invoke('aviso-diario', { body: {} });
+      if (error) throw error;
+      const r = data?.resultado?.[0];
+      if (r?.enviado) toast(`E-mail de teste enviado para ${r.email}.`);
+      else toast('Não foi possível enviar: ' + (r?.erro || r?.motivo || 'erro desconhecido'), true);
+    } catch (e) { fail(e); }
+    b.disabled = false; b.textContent = 'Enviar e-mail de teste';
+  });
   function renderBotaoNotif() {
     const b = $('btn-notif');
     b.classList.toggle('hidden', !Agenda.suportaNotificacao() || Notification.permission === 'granted');
@@ -257,13 +283,25 @@
       ? '📌 Este processo ainda não tem andamento. <a href="#" data-and>Informe a data da última publicação e o documento atual</a>.'
       : `⏰ Sem andamento registrado há ${idadeTxt(p)}. Verifique o processo no tribunal e <a href="#" data-and>registre o andamento</a>.`;
 
-    $('docs-body').innerHTML = docs.map((d) => `
+    const completo = docs.find((d) => d.categoria === 'processo_completo');
+    const docsAnd = docs.filter((d) => d.categoria !== 'processo_completo');
+    $('completo-info').innerHTML = completo
+      ? `<a href="#" data-act="ver" data-id="${completo.id}">${esc(completo.nome)}</a> · ${fmtSize(completo.tamanho)} · atualizado em ${brDateTime(completo.created_at)}`
+      : 'Nenhum arquivo do processo completo ainda.';
+    $('completo-acts').innerHTML = completo
+      ? `<button data-act="ver" data-id="${completo.id}">Ver</button><button data-act="baixar" data-id="${completo.id}">Baixar</button><button class="danger" data-act="apagar" data-id="${completo.id}">Apagar</button>`
+      : '';
+    $('completo-drop-txt').innerHTML = completo
+      ? 'Para <b>substituir</b>, arraste aqui o novo PDF do processo completo ou <u>clique para escolher</u>'
+      : 'Arraste aqui o PDF do processo completo ou <u>clique para escolher</u>';
+
+    $('docs-body').innerHTML = docsAnd.map((d) => `
       <tr data-id="${d.id}">
         <td><a href="#" data-act="ver">${esc(d.nome)}</a></td>
         <td class="small">${brDateTime(d.created_at)}</td><td class="num small">${fmtSize(d.tamanho)}</td>
         <td class="actions"><button data-act="baixar">Baixar</button> <button class="danger" data-act="apagar">×</button></td>
-      </tr>`).join('') || '<tr><td colspan="4" class="muted">Nenhum documento ainda.</td></tr>';
-    $('doc-names').innerHTML = docs.map((d) => `<option value="${esc(semExtensao(d.nome))}">`).join('');
+      </tr>`).join('') || '<tr><td colspan="4" class="muted">Nenhum documento de andamento ainda.</td></tr>';
+    $('doc-names').innerHTML = docsAnd.map((d) => `<option value="${esc(semExtensao(d.nome))}">`).join('');
 
     $('timeline').innerHTML = andamentos.map((a) => `
       <li data-id="${a.id}">
@@ -369,7 +407,7 @@
       const path = `${user.id}/${atual.id}/${crypto.randomUUID()}-${safeName(f.name)}`;
       const up = await sb.storage.from(BUCKET).upload(path, f, { contentType: f.type || 'application/octet-stream', upsert: false });
       if (up.error) { fail(up.error); continue; }
-      const ins = await sb.from('documentos').insert({ processo_id: atual.id, nome: f.name, storage_path: path, tipo: f.type || null, tamanho: f.size });
+      const ins = await sb.from('documentos').insert({ processo_id: atual.id, categoria: 'andamento', nome: f.name, storage_path: path, tipo: f.type || null, tamanho: f.size });
       if (ins.error) { await sb.storage.from(BUCKET).remove([path]); fail(ins.error); continue; }
       enviados.push(f);
     }
@@ -383,11 +421,41 @@
       });
     }
   }
-  $('files').addEventListener('change', (ev) => { enviar(ev.target.files); ev.target.value = ''; });
-  const drop = $('drop');
-  ['dragenter', 'dragover'].forEach((e) => drop.addEventListener(e, (ev) => { ev.preventDefault(); drop.classList.add('over'); }));
-  ['dragleave', 'drop'].forEach((e) => drop.addEventListener(e, (ev) => { ev.preventDefault(); drop.classList.remove('over'); }));
-  drop.addEventListener('drop', (ev) => enviar(ev.dataTransfer.files));
+  /** Processo completo: só 1 por processo. O novo substitui o anterior, que é apagado do armazenamento. */
+  async function enviarCompleto(files) {
+    const f = [...files][0]; if (!f || !atual) return;
+    if ([...files].length > 1) toast('Só um arquivo de processo completo é guardado; usando o primeiro.', true);
+    if (f.size > 50 * 1048576) return toast('Arquivo acima de 50 MB.', true);
+    const antigo = docs.find((d) => d.categoria === 'processo_completo');
+    if (antigo && !confirm(`Substituir "${antigo.nome}" por "${f.name}"? O arquivo anterior será apagado.`)) return;
+    toast(`Enviando ${f.name}…`);
+    const path = `${user.id}/${atual.id}/${crypto.randomUUID()}-${safeName(f.name)}`;
+    const up = await sb.storage.from(BUCKET).upload(path, f, { contentType: f.type || 'application/octet-stream', upsert: false });
+    if (up.error) return fail(up.error);
+    const dados = { nome: f.name, storage_path: path, tipo: f.type || null, tamanho: f.size, created_at: new Date().toISOString() };
+    // primeiro grava o novo; só depois apaga o antigo (se algo falhar, o anterior continua lá)
+    const q = antigo
+      ? sb.from('documentos').update(dados).eq('id', antigo.id)
+      : sb.from('documentos').insert({ ...dados, processo_id: atual.id, categoria: 'processo_completo' });
+    const r = await q;
+    if (r.error) { await sb.storage.from(BUCKET).remove([path]); return fail(r.error); }
+    if (antigo) {
+      const rm = await sb.storage.from(BUCKET).remove([antigo.storage_path]);
+      if (rm.error) console.warn('arquivo antigo não removido', rm.error);
+    }
+    await abrirProcesso(atual.id);
+    toast(antigo ? 'Processo completo substituído.' : 'Processo completo enviado.');
+    abrirAndamento({ hint: 'Você atualizou o processo completo. Qual a data da última publicação e em qual documento o processo está agora?' });
+  }
+
+  function ligarDrop(el, input, fn) {
+    input.addEventListener('change', (ev) => { fn(ev.target.files); ev.target.value = ''; });
+    ['dragenter', 'dragover'].forEach((e) => el.addEventListener(e, (ev) => { ev.preventDefault(); el.classList.add('over'); }));
+    ['dragleave', 'drop'].forEach((e) => el.addEventListener(e, (ev) => { ev.preventDefault(); el.classList.remove('over'); }));
+    el.addEventListener('drop', (ev) => fn(ev.dataTransfer.files));
+  }
+  ligarDrop($('drop'), $('files'), enviar);
+  ligarDrop($('drop-completo'), $('file-completo'), enviarCompleto);
 
   async function urlAssinada(d, download) {
     const { data, error } = await sb.storage.from(BUCKET).createSignedUrl(d.storage_path, 600, download ? { download: d.nome } : undefined);
@@ -395,10 +463,11 @@
     return data.signedUrl;
   }
 
-  $('docs-body').addEventListener('click', async (ev) => {
+  async function acaoDocumento(ev) {
     const el = ev.target.closest('[data-act]'); if (!el) return;
     ev.preventDefault();
-    const d = docs.find((x) => x.id === el.closest('tr').dataset.id);
+    const d = docs.find((x) => x.id === (el.dataset.id || el.closest('tr')?.dataset.id));
+    if (!d) return;
     try {
       if (el.dataset.act === 'ver') return await ver(d);
       if (el.dataset.act === 'baixar') { location.href = await urlAssinada(d, true); return; }
@@ -409,7 +478,10 @@
         toast('Documento apagado.'); abrirProcesso(atual.id);
       }
     } catch (e) { fail(e); }
-  });
+  }
+  $('docs-body').addEventListener('click', acaoDocumento);
+  $('completo-info').addEventListener('click', acaoDocumento);
+  $('completo-acts').addEventListener('click', acaoDocumento);
 
   async function ver(d) {
     const url = await urlAssinada(d, false);
@@ -428,6 +500,6 @@
   $('dlg-view').addEventListener('close', () => ($('v-frame').innerHTML = ''));
 
   // ===================== Início =====================
-  Auth.ready.then(({ user: u }) => { user = u; route(); });
+  Auth.ready.then(async ({ user: u }) => { user = u; await carregarPrefs(); route(); });
   window.Processos = { parseCNJ };
 })();
