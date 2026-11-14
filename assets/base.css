@@ -92,7 +92,7 @@ dialog .actions { display: flex; justify-content: flex-end; gap: 8px; margin-top
 .hidden { display: none !important; }
 
 .topbar .brand { display: inline-flex; align-items: center; gap: 10px; font-family: 'Orbitron', system-ui, sans-serif; font-weight: 800; }
-.topbar .brand img { width: 28px; height: 28px; }
+.topbar .brand img { width: 28px; height: 28px; flex: none; }
 .topbar .brand .ia { color: var(--accent); }
 .topbar .brand .tld { color: var(--muted); font-weight: 500; }
 
@@ -105,4 +105,4 @@ html.auth-pending body > main { visibility: hidden; }
 
 /* ícone do sistema na barra do topo */
 .topbar .sys-name { display: inline-flex; align-items: center; gap: 8px; color: var(--text); }
-.topbar .sys-name img { width: 24px; height: 24px; }
+.topbar .sys-name img { width: 28px; height: 28px; flex: none; }
