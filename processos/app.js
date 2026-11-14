@@ -289,7 +289,7 @@
     const completo = docs.find((d) => d.categoria === 'processo_completo');
     const docsAnd = docs.filter((d) => d.categoria !== 'processo_completo');
     $('completo-info').innerHTML = completo
-      ? `<a href="#" data-act="ver" data-id="${completo.id}">${esc(completo.nome)}</a> · ${fmtSize(completo.tamanho)} · atualizado em ${brDateTime(completo.created_at)}`
+      ? `Carregado em <b>${brDateTime(completo.created_at)}</b> · <a href="#" data-act="ver" data-id="${completo.id}">${esc(completo.nome)}</a> · ${fmtSize(completo.tamanho)}`
       : 'Nenhum arquivo do processo completo ainda.';
     $('completo-acts').innerHTML = completo
       ? `<button data-act="ver" data-id="${completo.id}">Ver</button><button data-act="baixar" data-id="${completo.id}">Baixar</button><button class="danger" data-act="apagar" data-id="${completo.id}">Apagar</button>`
@@ -453,8 +453,8 @@
       if (rm.error) console.warn('arquivo antigo não removido', rm.error);
     }
     await abrirProcesso(atual.id);
-    toast(antigo ? 'Processo completo substituído.' : 'Processo completo enviado.');
-    abrirAndamento({ hint: 'Você atualizou o processo completo. Qual a data da última publicação e em qual documento o processo está agora?' });
+    // O processo completo não é um andamento: só guarda a data em que foi carregado.
+    toast(antigo ? 'Processo completo substituído.' : 'Processo completo carregado.');
   }
 
   function ligarDrop(el, input, fn) {

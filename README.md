@@ -58,8 +58,9 @@ Controle pessoal de processos judiciais:
   navegador (1 vez por dia, ao abrir o site); botão para adicionar à agenda (.ics com lembretes 1 dia e 2 h antes)
   ou ao Google Agenda;
 - histórico de andamentos, busca, filtro por situação e exportação .xlsx.
-- **dois tipos de arquivo**: *documentos de andamento* (acumulam) e *processo completo* (só a versão mais recente:
-  ao enviar um novo, o anterior é apagado do armazenamento, para não ocupar espaço);
+- **dois tipos de arquivo**: *documentos de andamento* (acumulam e pedem o registro do andamento) e
+  *processo completo* (só a versão mais recente, com a data em que foi carregado; não é andamento e não entra no
+  histórico; ao enviar um novo, o anterior é apagado do armazenamento, para não ocupar espaço);
 - **e-mail diário às 7h** (botão ✉️ Avisos): audiências próximas e processos sem andamento; só envia quando há algo.
 
 Dados no Supabase (tabelas `processos`, `andamentos`, `documentos`, `audiencias`) e arquivos no bucket **privado**
