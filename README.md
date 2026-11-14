@@ -11,6 +11,7 @@ feito pelo **Supabase** (projeto `mantini-ia`), que também guarda os dados e ar
 index.html          portal (lista de sistemas)
 assets/base.css     visual compartilhado (cartões, botões, tabelas, modo escuro)
 assets/export.js    exportação sem bibliotecas: .xlsx, .csv e .zip
+assets/agenda.js    audiências: contador de dias, notificações e arquivo de agenda (.ics)
 assets/icon.svg     símbolo (logo) — também icon-512.png
 assets/logo.svg     logo completo (símbolo + nome)
 assets/fonts/       Orbitron (fonte do logo, licença OFL)
@@ -51,9 +52,13 @@ Controle pessoal de processos judiciais:
 - **documentos** baixados do tribunal: arraste para o processo, visualize (PDF/imagem) ou baixe;
 - **andamento**: data da última publicação + em qual documento o processo está. Ao carregar documentos,
   o sistema sempre pede o andamento; processos sem andamento há N dias (padrão 7) ficam em destaque;
+- **audiências** (data/hora, tipo, local ou link): contador de dias ("em 3 dias", "amanhã"), em vermelho até 7 dias
+  e amarelo até 30; aviso no portal e na lista para as audiências dos próximos N dias (padrão 7); notificação do
+  navegador (1 vez por dia, ao abrir o site); botão para adicionar à agenda (.ics com lembretes 1 dia e 2 h antes)
+  ou ao Google Agenda;
 - histórico de andamentos, busca, filtro por situação e exportação .xlsx.
 
-Dados no Supabase (tabelas `processos`, `andamentos`, `documentos`) e arquivos no bucket **privado**
+Dados no Supabase (tabelas `processos`, `andamentos`, `documentos`, `audiencias`) e arquivos no bucket **privado**
 `documentos`. Regras RLS garantem que cada usuário só vê, envia e apaga o que é seu.
 
 ## Login

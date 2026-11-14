@@ -10,7 +10,8 @@
   let user = null;
   let processos = [];      // lista (com contagem de documentos)
   let atual = null;        // processo aberto no detalhe
-  let docs = [], andamentos = [];
+  let docs = [], andamentos = [], audiencias = [];
+  let editingAudId = null;
   let editingAndId = null;
 
   // ===================== Utilitários =====================
@@ -35,6 +36,11 @@
   const idade = (p) => diasDesde(p.ultimo_andamento_em || p.created_at);
   const isStale = (p) => p.status === 'ativo' && (!p.ultimo_andamento_em || idade(p) >= staleDays());
   const idadeTxt = (p) => { const d = idade(p); return d === 0 ? 'hoje' : d === 1 ? '1 dia' : `${d} dias`; };
+
+  const proxAud = (lista) => (lista || []).filter((a) => !a.realizada && Agenda.diasAte(a.data_hora) >= 0)
+    .sort((a, b) => new Date(a.data_hora) - new Date(b.data_hora))[0] || null;
+  const cdHtml = (a) => `<span class="cd ${Agenda.urgencia(a.data_hora)}">${Agenda.rotulo(a.data_hora)}</span>`;
+  const dataCurta = (iso) => new Date(iso).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 
   // ---------- Número CNJ: NNNNNNN-DD.AAAA.J.TR.OOOO ----------
   const UF = ['', 'AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', 'MS', 'MG', 'PA', 'PB', 'PR', 'PE', 'PI', 'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SE', 'SP', 'TO'];
@@ -69,7 +75,7 @@
 
   // ===================== Lista =====================
   async function carregarLista() {
-    const { data, error } = await sb.from('processos').select('*, documentos(count)').order('updated_at', { ascending: false });
+    const { data, error } = await sb.from('processos').select('*, documentos(count), audiencias(id, data_hora, tipo, local, realizada)').order('updated_at', { ascending: false });
     if (error) return fail(error);
     processos = data;
     renderLista();
@@ -91,10 +97,20 @@
         <td style="font-variant-numeric:tabular-nums;white-space:nowrap">${esc(p.numero)}${p.status !== 'ativo' ? ` <span class="pill ${p.status}">${p.status}</span>` : ''}</td>
         <td>${esc(p.tribunal)}</td><td>${esc(p.titulo)}</td>
         <td>${brDate(p.ultima_publicacao)}</td><td>${esc(p.documento_atual || '—')}</td>
+        <td>${(() => { const a = proxAud(p.audiencias); return a ? `${dataCurta(a.data_hora)} ${cdHtml(a)}` : '<span class="muted">—</span>'; })()}</td>
         <td class="num">${p.documentos?.[0]?.count ?? 0}</td>
         <td class="num ${isStale(p) ? 'stale' : 'ok-age'}">${p.ultimo_andamento_em ? idadeTxt(p) : 'sem andamento'}</td>
       </tr>`).join('') ||
-      `<tr><td colspan="7" class="muted">${processos.length ? 'Nenhum processo encontrado com esse filtro.' : 'Nenhum processo ainda. Clique em <b>Novo processo</b> para começar.'}</td></tr>`;
+      `<tr><td colspan="8" class="muted">${processos.length ? 'Nenhum processo encontrado com esse filtro.' : 'Nenhum processo ainda. Clique em <b>Novo processo</b> para começar.'}</td></tr>`;
+
+    // audiências próximas de todos os processos
+    const todas = processos.flatMap((p) => (p.audiencias || []).map((a) => ({ ...a, _p: p })));
+    const prox = Agenda.proximas(todas);
+    $('alert-aud').classList.toggle('hidden', !prox.length);
+    $('alert-aud').innerHTML = prox.length ? `📅 <b>${prox.length}</b> audiência(s) nos próximos ${Agenda.avisoDias()} dias:<ul style="margin:6px 0 0">` +
+      prox.map((a) => `<li>${cdHtml(a)} <b>${esc(Agenda.dataHora(a.data_hora))}</b> — ${esc(a.tipo || 'Audiência')} · <a href="#/p/${a._p.id}">${esc(a._p.titulo || a._p.numero)}</a>${a.local ? ' · ' + esc(a.local) : ''}</li>`).join('') + '</ul>' : '';
+    Agenda.notificar(todas, (a) => a._p, (a) => '/processos/#/p/' + a._p.id);
+    renderBotaoNotif();
 
     const stale = processos.filter(isStale);
     $('alert-stale').classList.toggle('hidden', !stale.length);
@@ -112,9 +128,23 @@
     renderLista();
   });
 
+  $('aud-days').value = Agenda.avisoDias();
+  $('aud-days').addEventListener('change', () => { Agenda.setAvisoDias($('aud-days').value); renderLista(); });
+  function renderBotaoNotif() {
+    const b = $('btn-notif');
+    b.classList.toggle('hidden', !Agenda.suportaNotificacao() || Notification.permission === 'granted');
+    if (Agenda.suportaNotificacao() && Notification.permission === 'denied') { b.textContent = '🔕 Notificações bloqueadas'; b.title = 'Libere as notificações deste site nas configurações do navegador.'; }
+  }
+  $('btn-notif').addEventListener('click', async () => {
+    const r = await Agenda.pedirPermissao();
+    if (r === 'granted') { toast('Notificações ativadas. Você será avisado ao abrir o site.'); renderLista(); }
+    else renderBotaoNotif();
+  });
+
   $('btn-export').addEventListener('click', () => {
-    const rows = [['Número', 'Tribunal', 'Título / partes', 'Situação', 'Última publicação', 'Documento atual', 'Documentos', 'Último andamento registrado em', 'Observações'],
+    const rows = [['Número', 'Tribunal', 'Título / partes', 'Situação', 'Última publicação', 'Documento atual', 'Próxima audiência', 'Dias até a audiência', 'Documentos', 'Último andamento registrado em', 'Observações'],
       ...filtrados().map((p) => [p.numero, p.tribunal || '', p.titulo || '', p.status, brDate(p.ultima_publicacao).replace('—', ''), p.documento_atual || '',
+        proxAud(p.audiencias) ? dataCurta(proxAud(p.audiencias).data_hora) : '', proxAud(p.audiencias) ? Agenda.diasAte(proxAud(p.audiencias).data_hora) : '',
         p.documentos?.[0]?.count ?? 0, p.ultimo_andamento_em ? brDateTime(p.ultimo_andamento_em) : '', p.observacoes || ''])];
     Export.download(Export.xlsx([{ name: 'Processos', rows }]), `processos_${hoje()}.xlsx`);
   });
@@ -176,15 +206,17 @@
 
   // ===================== Detalhe =====================
   async function abrirProcesso(id) {
-    const [p, d, a] = await Promise.all([
+    const [p, d, a, au] = await Promise.all([
       sb.from('processos').select('*').eq('id', id).single(),
       sb.from('documentos').select('*').eq('processo_id', id).order('created_at', { ascending: false }),
       sb.from('andamentos').select('*').eq('processo_id', id).order('data_publicacao', { ascending: false }).order('created_at', { ascending: false }),
+      sb.from('audiencias').select('*').eq('processo_id', id).order('data_hora', { ascending: true }),
     ]);
+    if (au.error) return fail(au.error);
     if (p.error) { fail(p.error); location.hash = '#/'; return; }
     if (d.error) return fail(d.error);
     if (a.error) return fail(a.error);
-    atual = p.data; docs = d.data; andamentos = a.data;
+    atual = p.data; docs = d.data; andamentos = a.data; audiencias = au.data;
     renderDetalhe();
   }
 
@@ -198,6 +230,26 @@
     $('d-docatual').textContent = p.documento_atual || '—';
     $('d-idade').textContent = p.ultimo_andamento_em ? idadeTxt(p) : 'sem andamento';
     $('d-idade').className = isStale(p) ? 'stale' : '';
+    const pa = proxAud(audiencias);
+    $('d-proxaud').innerHTML = pa ? `${esc(dataCurta(pa.data_hora))} ${cdHtml(pa)}` : '—';
+
+    // futuras primeiro (mais próxima no topo), depois as passadas/realizadas (mais recente primeiro)
+    const fut = audiencias.filter((x) => !x.realizada && Agenda.diasAte(x.data_hora) >= 0);
+    const pas = audiencias.filter((x) => !fut.includes(x)).sort((x, y) => new Date(y.data_hora) - new Date(x.data_hora));
+    $('aud-list').innerHTML = [...fut, ...pas].map((x) => {
+      const realizada = x.realizada;
+      const pendente = !realizada && Agenda.diasAte(x.data_hora) < 0;
+      return `<li data-id="${x.id}" class="${realizada ? 'done' : ''}">
+        <span class="when">${esc(Agenda.dataHora(x.data_hora))}</span>
+        ${realizada ? '<span class="cd passou">realizada</span>' : pendente ? '<span class="cd perto">passou — marcar como realizada?</span>' : cdHtml(x)}
+        <span class="info">${esc(x.tipo || 'Audiência')}${x.local ? ' · ' + esc(x.local) : ''}${x.observacao ? `<div class="small muted">${esc(x.observacao)}</div>` : ''}</span>
+        <span class="acts">
+          ${!realizada && !pendente ? `<button data-act="ics" title="Baixar para Outlook / Apple / celular, com lembretes 1 dia e 2 h antes">📅 Agenda</button>
+          <a class="btn" target="_blank" rel="noopener" href="${esc(Agenda.googleUrl(x, atual))}">Google Agenda</a>` : ''}
+          <button data-act="feita">${realizada ? 'Desfazer' : 'Realizada'}</button>
+          <button data-act="edit">Editar</button> <button class="danger" data-act="del">×</button>
+        </span></li>`;
+    }).join('') || '<li class="muted">Nenhuma audiência cadastrada.</li>';
 
     const al = $('alert-proc');
     al.classList.toggle('hidden', !isStale(p));
@@ -259,6 +311,48 @@
     const { error } = await sb.from('andamentos').delete().eq('id', a.id);
     if (error) return fail(error);
     abrirProcesso(atual.id);
+  });
+
+  // ===================== Audiências =====================
+  const toLocalInput = (iso) => { const d = new Date(iso); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`; };
+  function abrirAudiencia(a) {
+    editingAudId = a?.id || null;
+    $('aud-title').textContent = a ? 'Editar audiência' : 'Nova audiência';
+    $('au-data').value = a ? toLocalInput(a.data_hora) : '';
+    $('au-tipo').value = a?.tipo || ''; $('au-local').value = a?.local || '';
+    $('au-obs').value = a?.observacao || ''; $('au-realizada').checked = !!a?.realizada;
+    $('dlg-aud').showModal(); $('au-data').focus();
+  }
+  $('d-nova-aud').addEventListener('click', () => abrirAudiencia(null));
+  $('form-aud').addEventListener('submit', async (ev) => {
+    if (ev.submitter?.value !== 'ok') return;
+    ev.preventDefault();
+    if (!$('au-data').value) return;
+    const row = { data_hora: new Date($('au-data').value).toISOString(), tipo: $('au-tipo').value.trim() || null,
+      local: $('au-local').value.trim() || null, observacao: $('au-obs').value.trim() || null, realizada: $('au-realizada').checked };
+    const q = editingAudId ? sb.from('audiencias').update(row).eq('id', editingAudId) : sb.from('audiencias').insert({ ...row, processo_id: atual.id });
+    const { error } = await q;
+    if (error) return fail(error);
+    $('dlg-aud').close();
+    toast(row.realizada ? 'Audiência salva.' : `Audiência salva — ${Agenda.rotulo(row.data_hora)}.`);
+    abrirProcesso(atual.id);
+  });
+  $('aud-list').addEventListener('click', async (ev) => {
+    const b = ev.target.closest('button[data-act]'); if (!b) return;
+    const a = audiencias.find((x) => x.id === b.closest('li').dataset.id);
+    if (b.dataset.act === 'edit') return abrirAudiencia(a);
+    if (b.dataset.act === 'ics') return Agenda.baixarIcs(a, atual);
+    if (b.dataset.act === 'feita') {
+      const { error } = await sb.from('audiencias').update({ realizada: !a.realizada }).eq('id', a.id);
+      if (error) return fail(error);
+      return abrirProcesso(atual.id);
+    }
+    if (b.dataset.act === 'del') {
+      if (!confirm(`Apagar a audiência de ${Agenda.dataHora(a.data_hora)}?`)) return;
+      const { error } = await sb.from('audiencias').delete().eq('id', a.id);
+      if (error) return fail(error);
+      abrirProcesso(atual.id);
+    }
   });
 
   // ===================== Documentos =====================

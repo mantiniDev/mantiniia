@@ -20,6 +20,8 @@
     .kv { display: flex; flex-wrap: wrap; gap: 28px; }
     .kv div span { display: block; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .03em; }
     .kv div b { font-size: 18px; }
+    .kv div span.cd { display: inline-block; font-size: 12px; color: inherit; text-transform: none; letter-spacing: 0; margin-left: 6px; vertical-align: middle; }
+    .kv div span.cd.urgente { color: #b91c1c; } .kv div span.cd.perto { color: #92400e; }
     .two { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
     @media (max-width: 860px) { .two { grid-template-columns: 1fr; } }
     .drop { display: block; cursor: pointer; border: 2px dashed var(--line); border-radius: var(--radius); padding: 16px; text-align: center; color: var(--muted); margin-bottom: 12px; }
@@ -36,6 +38,20 @@
     dialog.viewer .frame { flex: 1; border: 1px solid var(--line); border-radius: 8px; background: #fff; overflow: auto; display: flex; align-items: center; justify-content: center; }
     dialog.viewer iframe { width: 100%; height: 100%; border: 0; }
     dialog.viewer img { max-width: 100%; max-height: 100%; }
+    .cd { display: inline-block; padding: 1px 9px; border-radius: 999px; font-size: 12px; font-weight: 600; white-space: nowrap; }
+    .cd.urgente { background: #fee2e2; color: #b91c1c; }
+    .cd.perto { background: #fef3c7; color: #92400e; }
+    .cd.longe { background: var(--line); color: var(--muted); }
+    .cd.passou { background: var(--line); color: var(--muted); font-weight: 400; }
+    @media (prefers-color-scheme: dark) { .cd.urgente { background: #4c1d1d; color: #fca5a5; } .cd.perto { background: #42300f; color: #fcd34d; } }
+    .aud-list { list-style: none; margin: 0; padding: 0; }
+    .aud-list li { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--line); }
+    .aud-list li .when { font-weight: 600; min-width: 220px; }
+    .aud-list li .info { flex: 1; min-width: 180px; }
+    .aud-list li .acts { display: flex; gap: 6px; flex-wrap: wrap; }
+    .aud-list li .acts button, .aud-list li .acts a.btn { padding: 3px 10px; font-size: 12px; }
+    .aud-list li.done { opacity: .55; }
+    .big-count { font-size: 34px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
     #toast { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); background: var(--text); color: var(--bg); padding: 10px 16px; border-radius: 10px; font-size: 14px; display: none; z-index: 10; }
     .field small { color: var(--muted); }
     form .stack { display: flex; flex-direction: column; gap: 10px; }
@@ -51,6 +67,7 @@
   <main>
     <!-- ============ LISTA ============ -->
     <section id="view-list">
+      <div id="alert-aud" class="notice hidden"></div>
       <div id="alert-stale" class="notice hidden"></div>
       <div class="toolbar">
         <label class="field grow">Buscar<input id="q" placeholder="número, título, tribunal, documento…"></label>
@@ -60,14 +77,16 @@
             <option value="arquivado">Arquivados</option><option value="todos">Todos</option>
           </select>
         </label>
-        <label class="field" style="width:120px">Alerta após (dias)<input id="stale-days" type="number" min="1" step="1"></label>
+        <label class="field" style="width:130px">Sem andamento (dias)<input id="stale-days" type="number" min="1" step="1"></label>
+        <label class="field" style="width:150px">Avisar audiência (dias)<input id="aud-days" type="number" min="1" step="1"></label>
+        <button id="btn-notif" class="hidden">🔔 Ativar notificações</button>
         <button id="btn-export">Exportar .xlsx</button>
         <button class="primary" id="btn-new">Novo processo</button>
       </div>
       <div class="card">
         <table>
-          <thead><tr><th>Número</th><th>Tribunal</th><th>Título / partes</th><th>Última publicação</th><th>Documento atual</th><th class="num">Docs</th><th class="num">Atualizado há</th></tr></thead>
-          <tbody id="list-body"><tr><td colspan="7" class="muted">Carregando…</td></tr></tbody>
+          <thead><tr><th>Número</th><th>Tribunal</th><th>Título / partes</th><th>Última publicação</th><th>Documento atual</th><th>Próxima audiência</th><th class="num">Docs</th><th class="num">Atualizado há</th></tr></thead>
+          <tbody id="list-body"><tr><td colspan="8" class="muted">Carregando…</td></tr></tbody>
         </table>
       </div>
     </section>
@@ -98,9 +117,18 @@
             <div><span>Última publicação</span><b id="d-ultpub">—</b></div>
             <div><span>Documento atual</span><b id="d-docatual">—</b></div>
             <div><span>Atualizado há</span><b id="d-idade">—</b></div>
+            <div><span>Próxima audiência</span><b id="d-proxaud">—</b></div>
           </div>
           <button class="primary" id="d-andamento">Registrar andamento</button>
         </div>
+      </div>
+
+      <div class="card">
+        <div class="head" style="margin-bottom:6px">
+          <h2 style="margin:0">Audiências</h2>
+          <button class="primary" id="d-nova-aud">Nova audiência</button>
+        </div>
+        <ul class="aud-list" id="aud-list"></ul>
       </div>
 
       <div class="two">
@@ -162,6 +190,25 @@
     </form>
   </dialog>
 
+  <!-- Audiência -->
+  <dialog id="dlg-aud">
+    <form method="dialog" id="form-aud">
+      <h2 style="margin-top:0" id="aud-title">Nova audiência</h2>
+      <div class="stack">
+        <label class="field">Data e hora<input id="au-data" type="datetime-local" required></label>
+        <label class="field">Tipo<input id="au-tipo" list="aud-tipos" placeholder="ex.: Conciliação, Instrução, Una"></label>
+        <label class="field">Local ou link<input id="au-local" placeholder="sala, endereço ou link da videoconferência"></label>
+        <label class="field">Observação<input id="au-obs" placeholder="opcional"></label>
+        <label style="display:flex;gap:8px;align-items:center" class="small"><input type="checkbox" id="au-realizada"> Audiência já realizada</label>
+      </div>
+      <datalist id="aud-tipos"><option value="Conciliação"><option value="Instrução"><option value="Instrução e julgamento"><option value="Una"><option value="Mediação"><option value="Julgamento (sessão)"></datalist>
+      <div class="actions">
+        <button value="cancel" formnovalidate>Cancelar</button>
+        <button value="ok" class="primary">Salvar</button>
+      </div>
+    </form>
+  </dialog>
+
   <!-- Visualizador -->
   <dialog id="dlg-view" class="viewer">
     <div class="row" style="justify-content:space-between; align-items:center">
@@ -177,6 +224,7 @@
   <script src="../assets/config.js"></script>
   <script src="../assets/auth.js" data-root="../" data-protect></script>
   <script src="../assets/export.js"></script>
+  <script src="../assets/agenda.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

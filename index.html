@@ -22,6 +22,7 @@
   <header class="topbar"><a class="brand" href="./"><img src="assets/icon.svg" alt=""><span>mantini<span class="ia">.ia</span><span class="tld">.br</span></span></a><span class="sep">/</span><span class="muted">sistemas</span><span class="spacer"></span><span id="user-slot"></span></header>
   <main>
     <p class="muted">Ferramentas simples para o dia a dia de trabalho. <span id="login-hint">Entre com seu e-mail e senha para acessar.</span></p>
+    <div id="aud-portal" class="notice hidden"></div>
     <div class="grid">
       <a class="card sys" href="in_clock/">
         <span class="ico">⏱️</span>
@@ -44,6 +45,7 @@
   <script src="assets/vendor/supabase-2.119.0.js"></script>
   <script src="assets/config.js"></script>
   <script src="assets/auth.js" data-root="./"></script>
+  <script src="assets/agenda.js"></script>
   <script>
     // Sem login: os cartões levam para a tela de login e depois para o sistema.
     Auth.ready.then(({ user }) => {
@@ -52,7 +54,26 @@
       if (!user) document.querySelectorAll('a.sys').forEach((a) => {
         a.href = 'login/?next=' + encodeURIComponent(new URL(a.getAttribute('href'), location.href).pathname);
       });
+      if (user) avisarAudiencias();
     });
+
+    // Audiências próximas (sistema Processos)
+    async function avisarAudiencias() {
+      const inicioHoje = new Date(); inicioHoje.setHours(0, 0, 0, 0);
+      const { data, error } = await Auth.sb.from('audiencias')
+        .select('id, data_hora, tipo, local, realizada, processos(id, numero, titulo)')
+        .eq('realizada', false).gte('data_hora', inicioHoje.toISOString()).order('data_hora');
+      if (error || !data) return;
+      const prox = Agenda.proximas(data);
+      const box = document.getElementById('aud-portal');
+      if (!prox.length) return;
+      const esc = (t) => String(t ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+      box.innerHTML = `📅 <b>${prox.length}</b> audiência(s) nos próximos ${Agenda.avisoDias()} dias:<ul style="margin:6px 0 0">` + prox.map((a) =>
+        `<li><b>${Agenda.rotulo(a.data_hora)}</b> — ${esc(Agenda.dataHora(a.data_hora))} · ${esc(a.tipo || 'Audiência')} · ` +
+        `<a href="processos/#/p/${a.processos.id}">${esc(a.processos.titulo || a.processos.numero)}</a></li>`).join('') + '</ul>';
+      box.classList.remove('hidden');
+      Agenda.notificar(data, (a) => a.processos, (a) => '/processos/#/p/' + a.processos.id);
+    }
   </script>
 </body>
 </html>
