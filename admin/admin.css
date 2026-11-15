@@ -1,0 +1,42 @@
+/* Admin — estilos próprios (a página não aceita estilos embutidos, por segurança). */
+.box { max-width: 420px; margin: 6vh auto 16px; }
+.stack { display: flex; flex-direction: column; gap: 12px; }
+.codigo { font-size: 24px; letter-spacing: .3em; text-align: center; font-variant-numeric: tabular-nums; }
+.qr { display: flex; justify-content: center; background: #fff; border-radius: 12px; padding: 12px; margin: 10px 0; }
+.qr img { width: 200px; height: 200px; }
+#msg { text-align: center; }
+#conta { display: inline-flex; align-items: center; gap: 10px; }
+#conta button { padding: 5px 12px; font-size: 13px; }
+
+.resumo { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 16px; }
+.resumo div { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 16px; }
+.resumo span { display: block; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .03em; }
+.resumo b { font-size: 24px; font-variant-numeric: tabular-nums; }
+
+fieldset.field { border: 0; padding: 0; margin: 0; }
+fieldset.field legend { font-size: 13px; color: var(--muted); padding: 0; margin-bottom: 4px; }
+.checks { display: flex; flex-direction: column; gap: 4px; font-size: 14px; color: var(--text); }
+.checks label, .check-admin { display: flex; gap: 6px; align-items: center; cursor: pointer; }
+.check-admin { font-size: 14px; padding-bottom: 8px; }
+
+.head { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 8px; flex-wrap: wrap; }
+.head h2 { margin: 0; }
+.tabela { overflow-x: auto; }
+td { vertical-align: top; }
+td .email { font-weight: 600; }
+td .tags { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 4px; }
+.tag { font-size: 11px; padding: 1px 8px; border-radius: 999px; background: var(--line); color: var(--muted); white-space: nowrap; }
+.tag.admin { background: #fee2e2; color: #b91c1c; }
+.tag.bloqueado { background: #1d2129; color: #fff; }
+.tag.alerta { background: #fef3c7; color: #92400e; }
+.tag.ok { background: #dcfce7; color: #166534; }
+td.sis label { display: flex; gap: 6px; align-items: center; font-size: 13px; white-space: nowrap; }
+td.acoes { min-width: 230px; }
+td.acoes .botoes { display: flex; flex-wrap: wrap; gap: 4px; justify-content: flex-end; }
+td.acoes button { padding: 3px 9px; font-size: 12px; }
+tr.eu td { background: var(--accent-soft); }
+#log td { font-size: 13px; }
+#log td.detalhe { color: var(--muted); font-family: ui-monospace, monospace; font-size: 12px; }
+
+.senha-box { display: flex; gap: 10px; align-items: center; justify-content: center; margin: 16px 0; }
+.senha-box code { font-size: 22px; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 8px 14px; letter-spacing: .05em; user-select: all; }

@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>mantini.ia.br — sistemas</title>
-  <link rel="stylesheet" href="assets/base.css?v=20261114b">
+  <link rel="stylesheet" href="assets/base.css?v=20261115a">
   <link rel="icon" href="assets/icon.svg">
   <link rel="apple-touch-icon" href="assets/icon-512.png">
   <meta property="og:image" content="https://www.mantini.ia.br/assets/icon-512.png">
@@ -16,6 +16,10 @@
     .soon { opacity: .55; pointer-events: none; }
     .sys .lock { display: none; font-size: 12px; }
     body.anon .sys .lock { display: inline; }
+    .sys.sem-acesso { opacity: .5; cursor: not-allowed; }
+    .sys.sem-acesso:hover { border-color: var(--line); }
+    .sys .sem { display: none; font-size: 12px; color: var(--muted); }
+    .sys.sem-acesso .sem { display: block; }
   </style>
 </head>
 <body>
@@ -24,14 +28,14 @@
     <p class="muted">Ferramentas simples para o dia a dia de trabalho. <span id="login-hint">Entre com seu e-mail e senha para acessar.</span></p>
     <div id="aud-portal" class="notice hidden"></div>
     <div class="grid">
-      <a class="card sys" href="in_clock/">
+      <a class="card sys" href="in_clock/" data-sistema="in_clock">
         <img class="ico" src="assets/sistemas/in_clock.svg" alt="">
-        <h3>in_clock <span class="lock">🔒</span></h3>
+        <h3>in_clock <span class="lock">🔒</span></h3><span class="sem">Sem acesso — fale com o administrador</span>
         <span class="muted small">Cronômetro de tarefas (categoria e quantidade), ponto com banco de horas e exportação para .xlsx/CSV.</span>
       </a>
-      <a class="card sys" href="processos/">
+      <a class="card sys" href="processos/" data-sistema="processos">
         <img class="ico" src="assets/sistemas/processos.svg" alt="">
-        <h3>Processos <span class="lock">🔒</span></h3>
+        <h3>Processos <span class="lock">🔒</span></h3><span class="sem">Sem acesso — fale com o administrador</span>
         <span class="muted small">Acompanhamento pessoal de processos: documentos baixados do tribunal, última publicação e em qual documento cada processo está.</span>
       </a>
       <!-- Novo sistema: copie um bloco acima e aponte o href para a pasta do sistema. -->
@@ -44,7 +48,7 @@
   </main>
   <script src="assets/vendor/supabase-2.119.0.js"></script>
   <script src="assets/config.js"></script>
-  <script src="assets/auth.js" data-root="./"></script>
+  <script src="assets/auth.js?v=20261115a" data-root="./"></script>
   <script src="assets/agenda.js"></script>
   <script>
     // Sem login: os cartões levam para a tela de login e depois para o sistema.
@@ -54,8 +58,19 @@
       if (!user) document.querySelectorAll('a.sys').forEach((a) => {
         a.href = 'login/?next=' + encodeURIComponent(new URL(a.getAttribute('href'), location.href).pathname);
       });
-      if (user) avisarAudiencias();
+      if (user) marcarAcessos();
     });
+
+    // Sistemas liberados para a conta (definidos no admin)
+    async function marcarAcessos() {
+      const { data: meus } = await Auth.sb.rpc('meus_sistemas');
+      const lista = meus || [];
+      document.querySelectorAll('a.sys[data-sistema]').forEach((a) => {
+        if (lista.includes(a.dataset.sistema)) return;
+        a.classList.add('sem-acesso'); a.removeAttribute('href'); a.setAttribute('aria-disabled', 'true');
+      });
+      if (lista.includes('processos')) avisarAudiencias();
+    }
 
     // Audiências próximas (sistema Processos)
     async function avisarAudiencias() {

@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- Admin: fora do Google, sem cache e sem scripts de fora -->
+  <meta name="robots" content="noindex, nofollow">
+  <meta http-equiv="Cache-Control" content="no-store">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self' https://wlgehyqvzqniorgtodrg.supabase.co; object-src 'none'; base-uri 'none'; form-action 'none'">
+  <meta name="referrer" content="no-referrer">
+  <title>Admin — mantini.ia.br</title>
+  <link rel="stylesheet" href="../assets/base.css?v=20261115a">
+  <link rel="stylesheet" href="admin.css?v=20261115a">
+  <link rel="icon" href="../assets/icon.svg">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="../"><img src="../assets/icon.svg" width="28" height="28" alt=""><span>mantini<span class="ia">.ia</span><span class="tld">.br</span></span></a>
+    <span class="sep">/</span><span class="sys-name">🔐 Admin</span>
+    <span class="spacer"></span>
+    <span id="conta" class="hidden"><span id="conta-email" class="muted small"></span> <button id="sair">Sair</button></span>
+  </header>
+
+  <main>
+    <!-- carregando -->
+    <section id="etapa-carregando" class="card box"><p class="muted">Carregando…</p></section>
+
+    <!-- 1. login -->
+    <section id="etapa-login" class="card box hidden">
+      <h2>Admin</h2>
+      <p class="small muted">Acesso restrito. Entre com sua conta de administrador.</p>
+      <form id="form-login" class="stack">
+        <label class="field">E-mail<input type="email" id="email" autocomplete="username" required></label>
+        <label class="field">Senha<input type="password" id="senha" autocomplete="current-password" required></label>
+        <button class="primary" type="submit">Continuar</button>
+      </form>
+    </section>
+
+    <!-- 2a. código do autenticador -->
+    <section id="etapa-totp" class="card box hidden">
+      <h2>Código do autenticador</h2>
+      <p class="small muted">Abra o aplicativo autenticador (Google Authenticator, Microsoft Authenticator, Authy…) e digite o código de 6 dígitos de <b>mantini.ia.br admin</b>.</p>
+      <form id="form-totp" class="stack">
+        <input id="codigo-totp" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required placeholder="000000" class="codigo">
+        <button class="primary" type="submit">Entrar</button>
+      </form>
+    </section>
+
+    <!-- 2b. cadastrar autenticador (primeiro acesso) -->
+    <section id="etapa-cadastrar" class="card box hidden">
+      <h2>Ative o segundo fator</h2>
+      <p class="small muted">O admin exige um aplicativo autenticador. Escaneie o QR code com o aplicativo (ou digite a chave) e confirme com o código gerado.</p>
+      <div class="qr"><img id="qr" alt="QR code do autenticador"></div>
+      <p class="small">Chave: <code id="segredo"></code></p>
+      <form id="form-cadastrar" class="stack">
+        <input id="codigo-novo" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required placeholder="000000" class="codigo">
+        <button class="primary" type="submit">Confirmar e entrar</button>
+      </form>
+    </section>
+
+    <!-- negado -->
+    <section id="etapa-negado" class="card box hidden">
+      <h2>Sem acesso</h2>
+      <p>Esta conta não tem acesso ao admin. A tentativa foi registrada.</p>
+      <p><a href="../">← Voltar ao início</a></p>
+    </section>
+
+    <p id="msg" class="small" role="status"></p>
+
+    <!-- 3. painel -->
+    <section id="etapa-painel" class="hidden">
+      <div class="resumo" id="resumo"></div>
+
+      <div class="card">
+        <h2>Novo usuário</h2>
+        <form id="form-novo" class="row">
+          <label class="field grow">E-mail<input type="email" id="novo-email" required></label>
+          <fieldset class="field"><legend>Sistemas</legend><span id="novo-sistemas" class="checks"></span></fieldset>
+          <fieldset class="field"><legend>Senha</legend>
+            <span class="checks">
+              <label><input type="radio" name="modo" value="senha" checked> Senha temporária (eu passo para a pessoa)</label>
+              <label><input type="radio" name="modo" value="link"> Link por e-mail (a pessoa cria a senha)</label>
+            </span>
+          </fieldset>
+          <label class="check-admin"><input type="checkbox" id="novo-admin"> Admin</label>
+          <button class="primary" type="submit">Criar</button>
+        </form>
+      </div>
+
+      <div class="card">
+        <div class="head"><h2>Usuários</h2><input id="busca" placeholder="Buscar e-mail…"></div>
+        <div class="tabela"><table>
+          <thead><tr><th>Usuário</th><th>Sistemas</th><th>Último acesso</th><th class="num">Uso</th><th></th></tr></thead>
+          <tbody id="usuarios"></tbody>
+        </table></div>
+      </div>
+
+      <div class="card">
+        <h2>Auditoria</h2>
+        <div class="tabela"><table>
+          <thead><tr><th>Quando</th><th>Quem</th><th>Ação</th><th>Conta</th><th>Detalhe</th></tr></thead>
+          <tbody id="log"></tbody>
+        </table></div>
+      </div>
+      <p class="small muted">A sessão do admin vale só nesta aba e termina após 30 minutos sem uso.</p>
+    </section>
+  </main>
+
+  <!-- resultado com senha temporária -->
+  <dialog id="dlg-senha">
+    <h2>Senha temporária</h2>
+    <p class="small">Passe esta senha para <b id="senha-email"></b> por um canal seguro. Ela <b>não será mostrada de novo</b>. No primeiro acesso, a pessoa precisará criar uma senha própria.</p>
+    <p class="senha-box"><code id="senha-valor"></code> <button id="copiar">Copiar</button></p>
+    <div class="actions"><button id="fechar-senha" class="primary">Fechei, já copiei</button></div>
+  </dialog>
+
+  <!-- confirmar exclusão -->
+  <dialog id="dlg-excluir">
+    <form id="form-excluir">
+      <h2>Excluir conta</h2>
+      <p class="small">Isso apaga a conta <b id="excluir-email"></b>, todos os processos, andamentos, audiências e documentos dela. Não dá para desfazer.</p>
+      <label class="field">Digite o e-mail para confirmar<input id="excluir-confirmar" required autocomplete="off"></label>
+      <div class="actions"><button type="button" id="cancelar-excluir">Cancelar</button><button class="danger" type="submit">Excluir</button></div>
+    </form>
+  </dialog>
+
+  <script src="../assets/vendor/supabase-2.119.0.js"></script>
+  <script src="../assets/config.js"></script>
+  <script src="admin.js?v=20261115a"></script>
+</body>
+</html>

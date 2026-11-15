@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Entrar — mantini.ia.br</title>
-  <link rel="stylesheet" href="../assets/base.css?v=20261114b">
+  <link rel="stylesheet" href="../assets/base.css?v=20261115a">
   <link rel="icon" href="../assets/icon.svg">
   <style>
     .box { max-width: 380px; margin: 8vh auto; }
@@ -48,7 +48,7 @@
 
   <script src="../assets/vendor/supabase-2.119.0.js"></script>
   <script src="../assets/config.js"></script>
-  <script src="../assets/auth.js" data-root="../"></script>
+  <script src="../assets/auth.js?v=20261115a" data-root="../"></script>
   <script>
   (function () {
     const $ = (id) => document.getElementById(id);
@@ -71,8 +71,9 @@
 
     $('f-login').addEventListener('submit', async (ev) => {
       ev.preventDefault(); msg('Entrando…');
-      const { error } = await sb.auth.signInWithPassword({ email: $('email').value.trim(), password: $('senha').value });
+      const { data, error } = await sb.auth.signInWithPassword({ email: $('email').value.trim(), password: $('senha').value });
       if (error) return msg(traduz(error), true);
+      if (data.user?.user_metadata?.trocar_senha) return pedirNovaSenha();
       location.href = next;
     });
 
@@ -90,21 +91,34 @@
       msg(error ? traduz(error) : 'Se o e-mail estiver cadastrado, o link chegará em instantes.', !!error);
     });
 
+    // Senha temporária (criada pelo admin): obriga a criar uma senha própria antes de seguir.
+    let trocando = false;
+    function pedirNovaSenha() {
+      trocando = true;
+      show('f-nova', 'Crie sua senha');
+      msg('Você entrou com uma senha temporária. Crie agora uma senha só sua (mínimo 8 caracteres).');
+      $('toggle-reset').classList.add('hidden');
+    }
+
     // Link do e-mail de recuperação: o Supabase abre esta página com a sessão de recuperação.
     sb.auth.onAuthStateChange((event) => { if (event === 'PASSWORD_RECOVERY') show('f-nova', 'Nova senha'); });
 
     $('f-nova').addEventListener('submit', async (ev) => {
       ev.preventDefault();
       if ($('nova1').value !== $('nova2').value) return msg('As senhas não conferem.', true);
-      const { error } = await sb.auth.updateUser({ password: $('nova1').value });
-      if (error) return msg(traduz(error), true);
-      msg('Senha alterada. Redirecionando…'); setTimeout(() => (location.href = '../'), 1200);
+      const { error } = await sb.auth.updateUser({ password: $('nova1').value, data: { trocar_senha: false } });
+      if (error) return msg(/different from the old/i.test(error.message) ? 'A nova senha precisa ser diferente da anterior.' : traduz(error), true);
+      msg('Senha alterada. Redirecionando…'); setTimeout(() => (location.href = trocando ? next : '../'), 1200);
     });
 
     if (recovering) show('f-nova', 'Nova senha');
 
     // Já logado? vai direto.
-    Auth.ready.then(({ user }) => { if (user && !recovering) location.href = next; });
+    Auth.ready.then(({ user }) => {
+      if (!user || recovering) return;
+      if (user.user_metadata?.trocar_senha) return pedirNovaSenha();
+      location.href = next;
+    });
   })();
   </script>
 </body>

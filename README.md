@@ -75,6 +75,22 @@ Dados no Supabase (tabelas `processos`, `andamentos`, `documentos`, `audiencias`
 - Segredos da função (Supabase → Edge Functions → Secrets): `RESEND_API_KEY` (obrigatório) e
   `EMAIL_FROM` (opcional, ex.: `mantini.ia.br <avisos@mantini.ia.br>` depois de verificar o domínio no Resend).
 
+## Admin (`/admin/`)
+
+Usuários e controle de acesso, com a mesma segurança do admin do idbike:
+
+- **3 travas no servidor** (função `admin` no Supabase), conferidas a cada chamada: login válido,
+  conta na tabela `admins` (vazia = ninguém entra) e **segundo fator** (aplicativo autenticador, sessão `aal2`).
+  No primeiro acesso o admin cadastra o autenticador pelo QR code.
+- Sessão só na aba (sessionStorage) e saída após 30 min parado; página fora do Google, sem scripts de fora
+  (CSP) e sem poder ser aberta dentro de outro site.
+- Tentativa de quem não é admin: registrada e alerta por e-mail aos admins (no máximo 1 por hora).
+- Funções: criar usuário (senha temporária com troca obrigatória ou link por e-mail), sistemas liberados por
+  usuário (aplicado também no banco), bloquear (corta o acesso na hora), renovar senha, encerrar sessões,
+  zerar autenticador, dar/tirar admin e excluir conta (apaga também os documentos).
+- **Auditoria**: tudo o que o admin faz fica em `admin_log`, visível no painel.
+- O link **🔐 Admin** aparece na barra só para quem é admin.
+
 ## Login
 
 - Sem cadastro aberto: os acessos são criados no painel do Supabase (*Authentication → Users → Add user*).
