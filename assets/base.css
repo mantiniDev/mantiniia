@@ -106,3 +106,5 @@ html.auth-pending body > main { visibility: hidden; }
 /* ícone do sistema na barra do topo */
 .topbar .sys-name { display: inline-flex; align-items: center; gap: 8px; color: var(--text); }
 .topbar .sys-name img { width: 28px; height: 28px; flex: none; }
+
+progress { accent-color: var(--accent); }

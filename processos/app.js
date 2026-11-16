@@ -410,11 +410,46 @@
   // ===================== Documentos =====================
   const safeName = (n) => n.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Za-z0-9._-]+/g, '_').slice(-120);
 
+  // ---------- limite de 50 MB: PDFs maiores são comprimidos no navegador antes do envio ----------
+  const LIMITE = 50 * 1048576;
+  const ehPdf = (f) => f.type === 'application/pdf' || /\.pdf$/i.test(f.name);
+  const mb = (b) => (b / 1048576).toFixed(1).replace('.', ',') + ' MB';
+  let cancelarComp = false;
+  async function caber(f) {
+    if (f.size <= LIMITE) return f;
+    if (!ehPdf(f)) { toast(`"${f.name}" tem ${mb(f.size)} e passa do limite de 50 MB (só PDFs podem ser comprimidos).`, true); return null; }
+    if (!confirm(`"${f.name}" tem ${mb(f.size)}, acima do limite de 50 MB.\n\nComprimir agora para caber? As páginas viram imagem em boa resolução para leitura, mas o texto deixa de ser selecionável/pesquisável.`)) return null;
+    cancelarComp = false;
+    $('comp-nome').textContent = f.name; $('comp-bar').value = 0; $('comp-txt').textContent = 'Carregando…';
+    $('dlg-comp').showModal();
+    try {
+      const r = await PdfCompress.comprimir(f, {
+        limite: LIMITE, cancelado: () => cancelarComp,
+        progresso: (p) => {
+          if (p.fase === 'lendo') $('comp-txt').textContent = 'Lendo o PDF…';
+          else if (p.fase === 'salvando') $('comp-txt').textContent = 'Montando o PDF comprimido…';
+          else {
+            $('comp-bar').value = p.pagina / p.total;
+            $('comp-txt').textContent = `Comprimindo página ${p.pagina} de ${p.total}` + (p.nivel > 1 ? ` (tentativa ${p.nivel}, qualidade menor)` : '');
+          }
+        },
+      });
+      const novo = new File([r.blob], f.name, { type: 'application/pdf' });
+      novo.nota = `comprimido de ${mb(f.size)} para ${mb(novo.size)}`;
+      return novo;
+    } catch (e) {
+      if (!e.cancelado) fail(e); else toast('Compressão cancelada.');
+      return null;
+    } finally { $('dlg-comp').close(); }
+  }
+  $('comp-cancelar').addEventListener('click', () => { cancelarComp = true; $('comp-txt').textContent = 'Cancelando…'; });
+  $('dlg-comp').addEventListener('cancel', (ev) => { ev.preventDefault(); cancelarComp = true; }); // Esc = cancelar
+
   async function enviar(files) {
     files = [...files]; if (!files.length || !atual) return;
-    const grandes = files.filter((f) => f.size > 50 * 1048576);
-    if (grandes.length) toast(`Ignorado(s) por passar de 50 MB: ${grandes.map((f) => f.name).join(', ')}`, true);
-    files = files.filter((f) => f.size <= 50 * 1048576);
+    const prontos = [];
+    for (const f of files) { const ok = await caber(f); if (ok) prontos.push(ok); }
+    files = prontos;
     const enviados = [];
     for (const [i, f] of files.entries()) {
       toast(`Enviando ${i + 1}/${files.length}: ${f.name}…`);
@@ -427,7 +462,8 @@
     }
     await abrirProcesso(atual.id);
     if (enviados.length) {
-      toast(`${enviados.length} documento(s) enviado(s).`);
+      const notas = enviados.filter((f) => f.nota).map((f) => `"${f.name}" ${f.nota}`);
+      toast(`${enviados.length} documento(s) enviado(s).` + (notas.length ? ' ' + notas.join('; ') + '.' : ''));
       // Sempre pede o andamento depois de carregar documentos.
       abrirAndamento({
         documento: semExtensao(enviados[enviados.length - 1].name),
@@ -439,9 +475,12 @@
   async function enviarCompleto(files) {
     const f = [...files][0]; if (!f || !atual) return;
     if ([...files].length > 1) toast('Só um arquivo de processo completo é guardado; usando o primeiro.', true);
-    if (f.size > 50 * 1048576) return toast('Arquivo acima de 50 MB.', true);
     const antigo = docs.find((d) => d.categoria === 'processo_completo');
     if (antigo && !confirm(`Substituir "${antigo.nome}" por "${f.name}"? O arquivo anterior será apagado.`)) return;
+    const pronto = await caber(f); if (!pronto) return;
+    return enviarCompletoArquivo(pronto, antigo);
+  }
+  async function enviarCompletoArquivo(f, antigo) {
     toast(`Enviando ${f.name}…`);
     const path = `${user.id}/${atual.id}/${crypto.randomUUID()}-${safeName(f.name)}`;
     const up = await sb.storage.from(BUCKET).upload(path, f, { contentType: f.type || 'application/octet-stream', upsert: false });
@@ -459,7 +498,7 @@
     }
     await abrirProcesso(atual.id);
     // O processo completo não é um andamento: só guarda a data em que foi carregado.
-    toast(antigo ? 'Processo completo substituído.' : 'Processo completo carregado.');
+    toast((antigo ? 'Processo completo substituído' : 'Processo completo carregado') + (f.nota ? ` (${f.nota}).` : '.'));
   }
 
   function ligarDrop(el, input, fn) {

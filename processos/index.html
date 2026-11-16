@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Processos — mantini.ia.br</title>
-  <link rel="stylesheet" href="../assets/base.css?v=20261115a">
+  <link rel="stylesheet" href="../assets/base.css?v=20261116a">
   <link rel="icon" href="../assets/sistemas/processos.svg">
   <style>
     .toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; margin-bottom: 14px; }
@@ -133,7 +133,7 @@
         <label class="drop" id="drop-completo" style="margin:12px 0 0">
           <input type="file" id="file-completo" hidden>
           <span id="completo-drop-txt">Arraste aqui o PDF do processo completo ou <u>clique para escolher</u></span><br>
-          <span class="small">Só é guardada a versão mais recente: ao enviar um novo, o anterior é apagado.</span>
+          <span class="small">Só é guardada a versão mais recente: ao enviar um novo, o anterior é apagado. Acima de 50 MB, o PDF é comprimido antes do envio.</span>
         </label>
       </div>
 
@@ -151,7 +151,7 @@
           <label class="drop" id="drop">
             <input type="file" id="files" multiple hidden>
             Arraste aqui os documentos do andamento (decisões, despachos, intimações…) ou <u>clique para escolher</u><br>
-            <span class="small">PDF, imagens, Word… até 50 MB cada</span>
+            <span class="small">PDF, imagens, Word… até 50 MB cada (PDFs maiores são comprimidos automaticamente)</span>
           </label>
           <table>
             <thead><tr><th>Arquivo</th><th>Enviado em</th><th class="num">Tamanho</th><th></th></tr></thead>
@@ -241,6 +241,16 @@
     </form>
   </dialog>
 
+  <!-- Compressão de PDF grande -->
+  <dialog id="dlg-comp">
+    <h2 style="margin-top:0">Comprimindo PDF</h2>
+    <p class="small muted" id="comp-nome"></p>
+    <progress id="comp-bar" max="1" value="0" style="width:100%"></progress>
+    <p class="small" id="comp-txt"></p>
+    <p class="small muted">Tudo acontece no seu computador; pode levar alguns minutos em processos grandes. Não feche esta página.</p>
+    <div class="actions"><button type="button" id="comp-cancelar">Cancelar</button></div>
+  </dialog>
+
   <!-- Visualizador -->
   <dialog id="dlg-view" class="viewer">
     <div class="row" style="justify-content:space-between; align-items:center">
@@ -256,7 +266,8 @@
   <script src="../assets/config.js"></script>
   <script src="../assets/auth.js?v=20261115a" data-root="../" data-protect data-sistema="processos"></script>
   <script src="../assets/export.js"></script>
-  <script src="../assets/agenda.js"></script>
-  <script src="app.js"></script>
+  <script src="../assets/agenda.js?v=20261116a"></script>
+  <script src="../assets/pdf-compress.js?v=20261116a"></script>
+  <script src="app.js?v=20261116a"></script>
 </body>
 </html>

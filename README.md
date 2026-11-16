@@ -18,7 +18,7 @@ assets/logo.svg     logo completo (símbolo + nome)
 assets/fonts/       Orbitron (fonte do logo, licença OFL)
 assets/config.js    endereço e chave pública do Supabase
 assets/auth.js      login compartilhado (protege as páginas, mostra usuário/Sair)
-assets/vendor/      supabase-js 2.119.0 (MIT) hospedado no site
+assets/vendor/      supabase-js 2.119.0 (MIT), PDF.js 6.5 (Apache-2.0) e pdf-lib 1.17 (MIT), hospedados no site
 login/              tela de login e recuperação de senha
 in_clock/           in_clock — tarefas, ponto/banco de horas, relatórios
 processos/          Processos — controle pessoal de processos e documentos
@@ -62,6 +62,9 @@ Controle pessoal de processos judiciais:
 - **dois tipos de arquivo**: *documentos de andamento* (acumulam e pedem o registro do andamento) e
   *processo completo* (só a versão mais recente, com a data em que foi carregado; não é andamento e não entra no
   histórico; ao enviar um novo, o anterior é apagado do armazenamento, para não ocupar espaço);
+- **PDFs acima de 50 MB** (limite do Supabase gratuito) são **comprimidos no navegador** antes do envio
+  (PDF.js + pdf-lib, em `assets/pdf-compress.js`): cada página vira imagem JPEG, começando em 150 dpi e reduzindo só
+  se for preciso. O texto deixa de ser pesquisável. Ex.: 208 MB / 70 páginas → 25 MB em ~15 s;
 - **e-mail diário às 7h** (botão ✉️ Avisos): audiências próximas e processos sem andamento; só envia quando há algo.
 
 Dados no Supabase (tabelas `processos`, `andamentos`, `documentos`, `audiencias`) e arquivos no bucket **privado**
