@@ -77,7 +77,8 @@ Controle pessoal de processos judiciais:
   Brasil). Cada publicação entra uma vez só (id e hash); processo novo é cadastrado automaticamente
   ("Parte A x Parte B") e a publicação vira andamento (marcado "DJEN"). Aba **Publicações (DJEN)** com busca,
   não lidas e inteiro teor;
-- **e-mail diário às 7h** (botão ✉️ Avisos): audiências próximas e processos sem andamento; só envia quando há algo.
+- **e-mail diário às 7h** (botão ✉️ Avisos): audiências próximas, publicações novas do DJEN (últimas 24 h, com
+  destaque para processos novos) e processos sem andamento; só envia quando há algo.
 
 Dados no Supabase (tabelas `processos`, `andamentos`, `documentos`, `audiencias`) e arquivos no bucket **privado**
 `documentos`. Regras RLS garantem que cada usuário só vê, envia e apaga o que é seu.
