@@ -3,12 +3,61 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>mantini.ia.br — sistemas</title>
-  <link rel="stylesheet" href="assets/base.css?v=20261116a">
+  <title>mantini.ia.br — projetos de Paulo Mantini</title>
+  <meta name="description" content="Mostruário dos projetos de Paulo Mantini: idbike, Remendo e ferramentas pessoais.">
+  <meta property="og:title" content="mantini.ia.br — projetos de Paulo Mantini">
+  <meta property="og:description" content="idbike, Remendo e ferramentas pessoais. Ideias que viraram produto.">
+  <meta property="og:image" content="https://www.mantini.ia.br/assets/icon-512.png">
+  <meta property="og:type" content="website">
+  <link rel="stylesheet" href="assets/base.css?v=20261118a">
   <link rel="icon" href="assets/icon.svg">
   <link rel="apple-touch-icon" href="assets/icon-512.png">
-  <meta property="og:image" content="https://www.mantini.ia.br/assets/icon-512.png">
   <style>
+    html { scroll-behavior: smooth; }
+    main { max-width: 1100px; }
+
+    /* ---------- apresentação ---------- */
+    .hero {
+      background: #0b0d12; color: #f3f4f6; position: relative; overflow: hidden;
+      padding: 72px 24px 64px; border-bottom: 3px solid var(--accent);
+    }
+    .hero::before, .hero::after { /* órbitas do símbolo, ao fundo */
+      content: ''; position: absolute; top: 50%; border-radius: 50%; transform: translateY(-50%); pointer-events: none;
+    }
+    .hero::before { right: -120px; width: 460px; height: 460px; border: 2px dashed rgba(91, 101, 115, .28); }
+    .hero::after { right: -40px; width: 300px; height: 300px; border: 2px solid rgba(230, 57, 70, .18); }
+    .hero-in { max-width: 1100px; margin: 0 auto; display: flex; gap: 40px; align-items: center; position: relative; }
+    .hero-in > img { width: 150px; height: 150px; flex: none; }
+    .hero h1 { font-family: 'Orbitron', system-ui, sans-serif; font-weight: 800; font-size: clamp(30px, 5vw, 46px); margin: 0 0 10px; letter-spacing: -.01em; }
+    .hero h1 .ia { color: var(--accent); } .hero h1 .tld { color: #9aa1ad; font-weight: 800; }
+    .hero p.lead { font-size: 19px; color: #c9cdd4; margin: 0 0 22px; max-width: 620px; }
+    .hero .cta { display: flex; gap: 10px; flex-wrap: wrap; }
+    .hero .cta a { border-radius: 999px; padding: 10px 20px; font-weight: 600; }
+    .hero .cta .principal { background: var(--accent); color: #fff; border: 1px solid var(--accent); }
+    .hero .cta .secundario { color: #f3f4f6; border: 1px solid #3a3f4a; }
+    .hero .cta a:hover { text-decoration: none; filter: brightness(1.1); }
+    @media (max-width: 700px) { .hero-in { flex-direction: column; text-align: center; gap: 20px; } .hero-in > img { width: 110px; height: 110px; } .hero .cta { justify-content: center; } .hero::before, .hero::after { display: none; } }
+
+    /* ---------- seções ---------- */
+    section.bloco { margin: 44px 0; }
+    .titulo-secao { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+    .titulo-secao h2 { font-family: 'Orbitron', system-ui, sans-serif; font-size: 22px; margin: 0; }
+    .titulo-secao p { margin: 0; color: var(--muted); }
+
+    /* projetos públicos */
+    .projetos { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px; }
+    .projeto { display: flex; flex-direction: column; background: var(--card); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; color: var(--text); box-shadow: var(--shadow); transition: transform .15s, border-color .15s; }
+    .projeto:hover { transform: translateY(-3px); border-color: var(--accent); text-decoration: none; }
+    .projeto img { width: 100%; height: auto; aspect-ratio: 1200 / 630; object-fit: cover; display: block; border-bottom: 1px solid var(--line); }
+    .projeto .corpo { padding: 18px 20px 20px; display: flex; flex-direction: column; gap: 8px; flex: 1; }
+    .projeto h3 { margin: 0; font-size: 20px; }
+    .projeto .slogan { color: var(--accent); font-weight: 600; margin: 0; }
+    .projeto p { margin: 0; color: var(--muted); }
+    .projeto .tags { display: flex; gap: 6px; flex-wrap: wrap; margin-top: auto; padding-top: 8px; }
+    .projeto .tags span { font-size: 12px; padding: 2px 10px; border-radius: 999px; background: var(--bg); border: 1px solid var(--line); color: var(--muted); }
+    .projeto .link { font-weight: 600; color: var(--accent); }
+
+    /* ferramentas pessoais */
     .sys { display: flex; flex-direction: column; gap: 8px; color: var(--text); }
     .sys:hover { border-color: var(--accent); text-decoration: none; }
     .sys .ico { width: 52px; height: 52px; }
@@ -20,38 +69,99 @@
     .sys.sem-acesso:hover { border-color: var(--line); }
     .sys .sem { display: none; font-size: 12px; color: var(--muted); }
     .sys.sem-acesso .sem { display: block; }
+
+    footer.rodape { border-top: 1px solid var(--line); padding: 24px; text-align: center; color: var(--muted); font-size: 14px; }
+    footer.rodape a { color: var(--text); font-weight: 600; }
   </style>
 </head>
 <body>
-  <header class="topbar"><a class="brand" href="./"><img src="assets/icon.svg" width="28" height="28" alt=""><span>mantini<span class="ia">.ia</span><span class="tld">.br</span></span></a><span class="sep">/</span><span class="muted">sistemas</span><span class="spacer"></span><span id="user-slot"></span></header>
-  <main>
-    <p class="muted">Ferramentas simples para o dia a dia de trabalho. <span id="login-hint">Entre com seu e-mail e senha para acessar.</span></p>
-    <div id="aud-portal" class="notice hidden"></div>
-    <div class="grid">
-      <a class="card sys" href="in_clock/" data-sistema="in_clock">
-        <img class="ico" src="assets/sistemas/in_clock.svg" alt="">
-        <h3>in_clock <span class="lock">🔒</span></h3><span class="sem">Sem acesso — fale com o administrador</span>
-        <span class="muted small">Cronômetro de tarefas (categoria e quantidade), ponto com banco de horas e exportação para .xlsx/CSV.</span>
-      </a>
-      <a class="card sys" href="processos/" data-sistema="processos">
-        <img class="ico" src="assets/sistemas/processos.svg" alt="">
-        <h3>Processos <span class="lock">🔒</span></h3><span class="sem">Sem acesso — fale com o administrador</span>
-        <span class="muted small">Acompanhamento pessoal de processos: documentos baixados do tribunal, última publicação e em qual documento cada processo está.</span>
-      </a>
-      <!-- Novo sistema: copie um bloco acima e aponte o href para a pasta do sistema. -->
-      <div class="card sys soon">
-        <img class="ico" src="assets/sistemas/novo.svg" alt="">
-        <h3>Próximo sistema</h3>
-        <span class="muted small">Em breve.</span>
+  <header class="topbar"><a class="brand" href="./"><img src="assets/icon.svg" width="28" height="28" alt=""><span>mantini<span class="ia">.ia</span><span class="tld">.br</span></span></a><span class="spacer"></span><span id="user-slot"></span></header>
+
+  <div class="hero">
+    <div class="hero-in">
+      <img src="assets/icon.svg" width="150" height="150" alt="">
+      <div>
+        <h1>mantini<span class="ia">.ia</span><span class="tld">.br</span></h1>
+        <p class="lead">Mostruário dos projetos de <b>Paulo Mantini</b>: produtos abertos ao público e ferramentas que uso no dia a dia de trabalho.</p>
+        <div class="cta">
+          <a class="principal" href="#projetos">Ver projetos</a>
+          <a class="secundario" href="https://paulomantini.com.br" target="_blank" rel="noopener">Meu perfil ↗</a>
+        </div>
       </div>
     </div>
+  </div>
+
+  <main>
+    <!-- ===================== PROJETOS ===================== -->
+    <section class="bloco" id="projetos">
+      <div class="titulo-secao">
+        <h2>Projetos</h2>
+        <p>Abertos ao público.</p>
+      </div>
+      <div class="projetos">
+        <a class="projeto" href="https://idbike.com.br" target="_blank" rel="noopener">
+          <img src="assets/projetos/idbike.jpg" width="1200" height="630" alt="idbike — Sua bike, peça por peça" loading="lazy">
+          <div class="corpo">
+            <h3>idbike</h3>
+            <p class="slogan">Sua bike, peça por peça.</p>
+            <p>App para ciclistas: bikes, peças, manutenções e quilometragem num lugar só, com Strava e Garmin. Avisa quando cada peça está perto de trocar e registra a bike pelo número do quadro.</p>
+            <div class="tags"><span>App (instalável)</span><span>Strava</span><span>Ciclismo</span></div>
+            <span class="link">idbike.com.br ↗</span>
+          </div>
+        </a>
+        <a class="projeto" href="https://remendo.com.br" target="_blank" rel="noopener">
+          <img src="assets/projetos/remendo.jpg" width="1200" height="630" alt="Remendo — Cada emenda tem um destino" loading="lazy">
+          <div class="corpo">
+            <h3>Remendo</h3>
+            <p class="slogan">Siga o fio de cada emenda.</p>
+            <p>Emendas parlamentares: quanto foi empenhado e quanto foi pago, por parlamentar, área, partido e estado. Dados oficiais, sem partido.</p>
+            <div class="tags"><span>Dados abertos</span><span>Transparência</span><span>Política</span></div>
+            <span class="link">remendo.com.br ↗</span>
+          </div>
+        </a>
+      </div>
+    </section>
+
+    <!-- ===================== FERRAMENTAS PESSOAIS ===================== -->
+    <section class="bloco" id="ferramentas">
+      <div class="titulo-secao">
+        <h2>Ferramentas pessoais</h2>
+        <p>Sistemas de uso pessoal e de trabalho. <span id="login-hint">Acesso com login.</span></p>
+      </div>
+      <div id="aud-portal" class="notice hidden"></div>
+      <div class="grid">
+        <a class="card sys" href="in_clock/" data-sistema="in_clock">
+          <img class="ico" src="assets/sistemas/in_clock.svg" alt="">
+          <h3>in_clock <span class="lock">🔒</span></h3><span class="sem">Sem acesso — fale com o administrador</span>
+          <span class="muted small">Cronômetro de tarefas (categoria e quantidade), ponto com banco de horas e exportação para .xlsx/CSV.</span>
+        </a>
+        <a class="card sys" href="processos/" data-sistema="processos">
+          <img class="ico" src="assets/sistemas/processos.svg" alt="">
+          <h3>Processos <span class="lock">🔒</span></h3><span class="sem">Sem acesso — fale com o administrador</span>
+          <span class="muted small">Acompanhamento pessoal de processos: documentos do tribunal, última publicação, audiências com contador de dias e aviso diário por e-mail.</span>
+        </a>
+        <!-- Novo sistema: copie um bloco acima e aponte o href para a pasta do sistema. -->
+        <div class="card sys soon">
+          <img class="ico" src="assets/sistemas/novo.svg" alt="">
+          <h3>Próximo sistema</h3>
+          <span class="muted small">Em breve.</span>
+        </div>
+      </div>
+    </section>
   </main>
+
+  <footer class="rodape">
+    © <span id="ano">2026</span> Paulo Mantini · <a href="https://paulomantini.com.br" target="_blank" rel="noopener">paulomantini.com.br</a>
+  </footer>
+
   <script src="assets/vendor/supabase-2.119.0.js"></script>
   <script src="assets/config.js"></script>
   <script src="assets/auth.js?v=20261115a" data-root="./"></script>
-  <script src="assets/agenda.js"></script>
+  <script src="assets/agenda.js?v=20261116a"></script>
   <script>
-    // Sem login: os cartões levam para a tela de login e depois para o sistema.
+    document.getElementById('ano').textContent = new Date().getFullYear();
+
+    // Sem login: os cartões das ferramentas levam para a tela de login e depois para o sistema.
     Auth.ready.then(({ user }) => {
       document.body.classList.toggle('anon', !user);
       document.getElementById('login-hint').classList.toggle('hidden', !!user);

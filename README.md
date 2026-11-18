@@ -1,9 +1,17 @@
-# mantini.ia.br — sistemas
+# mantini.ia.br — projetos de Paulo Mantini
 
-Portal com sistemas simples de uso no trabalho, publicado em **https://www.mantini.ia.br**.
+Mostruário dos projetos de Paulo Mantini, publicado em **https://www.mantini.ia.br**
+(perfil: [paulomantini.com.br](https://paulomantini.com.br)).
 
-Tudo é **HTML + CSS + JavaScript puro**, sem build. O acesso aos sistemas exige **login (e-mail e senha)**,
+- **Projetos** (abertos ao público): [idbike](https://idbike.com.br) e [Remendo](https://remendo.com.br),
+  em cartões com a imagem oficial de cada um (`assets/projetos/`).
+- **Ferramentas pessoais** (com login): in_clock e Processos.
+
+Tudo é **HTML + CSS + JavaScript puro**, sem build. O acesso às ferramentas exige **login (e-mail e senha)**,
 feito pelo **Supabase** (projeto `mantini-ia`), que também guarda os dados e arquivos dos sistemas que precisam de servidor.
+
+**Novo projeto público no mostruário:** salve a imagem de capa (1200×630) em `assets/projetos/` e copie um
+bloco `<a class="projeto">` em `index.html`.
 
 ## Estrutura
 
