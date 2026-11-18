@@ -30,7 +30,7 @@ login/              tela de login e recuperação de senha
 in_clock/           in_clock — tarefas, ponto/banco de horas, relatórios
 processos/          Processos — controle pessoal de processos e documentos
 supabase/migrations estrutura do banco (tabelas, regras de acesso, armazenamento, agendador)
-supabase/functions  aviso-diario: monta e envia o e-mail diário (Resend)
+supabase/functions  aviso-diario (e-mail diário, Resend), admin (painel) e djen (publicações do CNJ)
 CNAME               domínio (www.mantini.ia.br)
 ```
 
@@ -72,6 +72,11 @@ Controle pessoal de processos judiciais:
 - **PDFs acima de 50 MB** (limite do Supabase gratuito) são **comprimidos no navegador** antes do envio
   (PDF.js + pdf-lib, em `assets/pdf-compress.js`): cada página vira imagem JPEG, começando em 150 dpi e reduzindo só
   se for preciso. O texto deixa de ser pesquisável. Ex.: 208 MB / 70 páginas → 25 MB em ~15 s;
+- **DJEN (publicações por OAB)**: botão ⚖️ OABs cadastra as OABs; 3x por dia (8h, 13h, 19h) a função `djen`
+  consulta a API de Comunicações do CNJ (roda em São Paulo, `x-region: sa-east-1`, pois a API só aceita acesso do
+  Brasil). Cada publicação entra uma vez só (id e hash); processo novo é cadastrado automaticamente
+  ("Parte A x Parte B") e a publicação vira andamento (marcado "DJEN"). Aba **Publicações (DJEN)** com busca,
+  não lidas e inteiro teor;
 - **e-mail diário às 7h** (botão ✉️ Avisos): audiências próximas e processos sem andamento; só envia quando há algo.
 
 Dados no Supabase (tabelas `processos`, `andamentos`, `documentos`, `audiencias`) e arquivos no bucket **privado**

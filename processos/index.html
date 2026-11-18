@@ -52,6 +52,27 @@
     .aud-list li .acts button, .aud-list li .acts a.btn { padding: 3px 10px; font-size: 12px; }
     .aud-list li.done { opacity: .55; }
     .big-count { font-size: 34px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
+    dialog.largo { width: min(820px, 96vw); }
+    /* lista de processos: nada sai do quadro (nomes longos quebram; em telas estreitas a tabela rola de lado) */
+    .tabela-wrap { overflow-x: auto; }
+    table.lista td { overflow-wrap: anywhere; word-break: break-word; }
+    table.lista td:nth-child(1) { white-space: nowrap; overflow-wrap: normal; word-break: normal; }
+    table.lista td:nth-child(3) { min-width: 180px; }
+    table.lista td:nth-child(5) { min-width: 170px; max-width: 260px; }
+    table.lista td:nth-child(8), table.lista th:nth-child(8) { white-space: nowrap; }
+    .pub .texto, .timeline li, #docs-body td { overflow-wrap: anywhere; }
+    .pub { background: var(--card); border: 1px solid var(--line); border-left: 4px solid var(--line); border-radius: 10px; padding: 12px 16px; margin-bottom: 10px; }
+    .pub.nova { border-left-color: var(--accent); }
+    .pub .topo { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: baseline; }
+    .pub .topo b { font-variant-numeric: tabular-nums; }
+    .pub .tipo { font-weight: 600; }
+    .pub .meta { color: var(--muted); font-size: 13px; }
+    .pub .texto { white-space: pre-wrap; font-size: 14px; margin: 8px 0 0; max-height: 4.5em; overflow: hidden; color: var(--text); }
+    .pub.aberta .texto { max-height: none; }
+    .pub .acoes { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+    .pub .acoes button, .pub .acoes a.btn { padding: 3px 10px; font-size: 12px; }
+    .tag-djen { display: inline-block; font-size: 11px; padding: 0 7px; border-radius: 999px; background: #e0e7ff; color: #3730a3; margin-left: 4px; vertical-align: middle; }
+    @media (prefers-color-scheme: dark) { .tag-djen { background: #1e2a5a; color: #c7d2fe; } }
     #toast { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); background: var(--text); color: var(--bg); padding: 10px 16px; border-radius: 10px; font-size: 14px; display: none; z-index: 10; }
     .field small { color: var(--muted); }
     form .stack { display: flex; flex-direction: column; gap: 10px; }
@@ -67,6 +88,11 @@
   <main>
     <!-- ============ LISTA ============ -->
     <section id="view-list">
+      <nav class="tabs" id="abas">
+        <button data-aba="processos" class="active">Processos</button>
+        <button data-aba="publicacoes">Publicações (DJEN) <span id="pub-nao-lidas" class="badge hidden"></span></button>
+      </nav>
+      <div id="aba-processos">
       <div id="alert-aud" class="notice hidden"></div>
       <div id="alert-stale" class="notice hidden"></div>
       <div class="toolbar">
@@ -77,16 +103,33 @@
             <option value="arquivado">Arquivados</option><option value="todos">Todos</option>
           </select>
         </label>
+        <button id="btn-oabs">⚖️ OABs</button>
         <button id="btn-avisos">✉️ Avisos</button>
         <button id="btn-notif" class="hidden">🔔 Ativar notificações</button>
         <button id="btn-export">Exportar .xlsx</button>
         <button class="primary" id="btn-new">Novo processo</button>
       </div>
-      <div class="card">
-        <table>
+      <div class="card tabela-wrap">
+        <table class="lista">
           <thead><tr><th>Número</th><th>Tribunal</th><th>Título / partes</th><th>Última publicação</th><th>Documento atual</th><th>Próxima audiência</th><th class="num">Docs</th><th class="num">Atualizado há</th></tr></thead>
           <tbody id="list-body"><tr><td colspan="8" class="muted">Carregando…</td></tr></tbody>
         </table>
+      </div>
+      </div>
+
+      <!-- publicações do DJEN -->
+      <div id="aba-publicacoes" class="hidden">
+        <div class="toolbar">
+          <label class="field grow">Buscar<input id="pub-q" placeholder="processo, tribunal, órgão, tipo, texto…"></label>
+          <label class="field">Mostrar
+            <select id="pub-filtro"><option value="nao-lidas">Não lidas</option><option value="todas">Todas</option></select>
+          </label>
+          <button id="btn-oabs2">⚖️ OABs</button>
+          <button id="pub-marcar-todas">Marcar todas como lidas</button>
+        </div>
+        <div id="pub-info" class="small muted" style="margin-bottom:10px"></div>
+        <div id="pub-lista"></div>
+        <p style="text-align:center"><button id="pub-mais" class="hidden">Carregar mais</button></p>
       </div>
     </section>
 
@@ -163,6 +206,11 @@
           <ul class="timeline" id="timeline"></ul>
         </div>
       </div>
+
+      <div class="card hidden" id="d-pubs-card">
+        <h2>Publicações no DJEN</h2>
+        <div id="d-pubs"></div>
+      </div>
     </section>
   </main>
 
@@ -202,6 +250,28 @@
         <button value="ok" class="primary">Salvar andamento</button>
       </div>
     </form>
+  </dialog>
+
+  <!-- OABs monitoradas no DJEN -->
+  <dialog id="dlg-oabs" class="largo">
+    <h2 style="margin-top:0">OABs monitoradas no DJEN</h2>
+    <p class="small muted">O sistema consulta o Diário de Justiça Eletrônico Nacional (CNJ) <b>3 vezes por dia</b> (8h, 13h e 19h).
+      Cada publicação entra uma vez só. Processos novos são cadastrados no painel com a publicação como último andamento;
+      nos que já existem, ela entra no histórico. A primeira busca de uma OAB traz os últimos 30 dias.</p>
+    <form id="form-oab" class="row" autocomplete="off">
+      <label class="field" style="width:130px">Nº da OAB<input id="oab-num" required placeholder="123456" pattern="[0-9]{1,8}[A-Za-z]?"></label>
+      <label class="field" style="width:90px">UF<select id="oab-uf" required></select></label>
+      <label class="field grow">Nome (opcional)<input id="oab-nome" placeholder="ex.: Dr. Fulano"></label>
+      <button class="primary" type="submit">Adicionar</button>
+    </form>
+    <table style="margin-top:12px">
+      <thead><tr><th>OAB</th><th>Nome</th><th>Última busca</th><th>Resultado</th><th></th></tr></thead>
+      <tbody id="oabs-body"></tbody>
+    </table>
+    <div class="actions">
+      <button type="button" id="oab-buscar" style="margin-right:auto">🔄 Buscar agora</button>
+      <button type="button" id="oab-fechar" class="primary">Fechar</button>
+    </div>
   </dialog>
 
   <!-- Avisos -->
@@ -268,6 +338,6 @@
   <script src="../assets/export.js"></script>
   <script src="../assets/agenda.js?v=20261116a"></script>
   <script src="../assets/pdf-compress.js?v=20261116a"></script>
-  <script src="app.js?v=20261116a"></script>
+  <script src="app.js?v=20261118a"></script>
 </body>
 </html>

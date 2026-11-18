@@ -10,7 +10,7 @@
   let user = null;
   let processos = [];      // lista (com contagem de documentos)
   let atual = null;        // processo aberto no detalhe
-  let docs = [], andamentos = [], audiencias = [];
+  let docs = [], andamentos = [], audiencias = [], pubsProcesso = [];
   let editingAudId = null;
   let editingAndId = null;
 
@@ -83,9 +83,16 @@
 
   // ===================== Lista =====================
   async function carregarLista() {
-    const { data, error } = await sb.from('processos').select('*, documentos(count), audiencias(id, data_hora, tipo, local, realizada)').order('updated_at', { ascending: false });
-    if (error) return fail(error);
-    processos = data;
+    // o Supabase entrega no máximo 1000 linhas por consulta: busca em páginas
+    const todos = [];
+    for (let de = 0; ; de += 1000) {
+      const { data, error } = await sb.from('processos').select('*, documentos(count), audiencias(id, data_hora, tipo, local, realizada)')
+        .order('updated_at', { ascending: false }).order('id').range(de, de + 999);
+      if (error) return fail(error);
+      todos.push(...data);
+      if (data.length < 1000) break;
+    }
+    processos = todos;
     renderLista();
   }
 
@@ -237,12 +244,15 @@
 
   // ===================== Detalhe =====================
   async function abrirProcesso(id) {
-    const [p, d, a, au] = await Promise.all([
+    const [p, d, a, au, pb] = await Promise.all([
       sb.from('processos').select('*').eq('id', id).single(),
       sb.from('documentos').select('*').eq('processo_id', id).order('created_at', { ascending: false }),
       sb.from('andamentos').select('*').eq('processo_id', id).order('data_publicacao', { ascending: false }).order('created_at', { ascending: false }),
       sb.from('audiencias').select('*').eq('processo_id', id).order('data_hora', { ascending: true }),
+      sb.from('publicacoes').select('*').eq('processo_id', id).order('data_disponibilizacao', { ascending: false }).limit(100),
     ]);
+    if (pb.error) return fail(pb.error);
+    pubsProcesso = pb.data;
     if (au.error) return fail(au.error);
     if (p.error) { fail(p.error); location.hash = '#/'; return; }
     if (d.error) return fail(d.error);
@@ -314,10 +324,13 @@
     $('timeline').innerHTML = andamentos.map((a) => `
       <li data-id="${a.id}">
         <span class="acts"><button data-act="edit">Editar</button> <button class="danger" data-act="del">×</button></span>
-        <span class="when">${brDate(a.data_publicacao)}</span> — ${esc(a.documento)}
+        <span class="when">${brDate(a.data_publicacao)}</span> — ${esc(a.documento)}${a.origem === 'djen' ? '<span class="tag-djen">DJEN</span>' : ''}
         ${a.observacao ? `<div class="small muted">${esc(a.observacao)}</div>` : ''}
         <div class="small muted">registrado em ${brDateTime(a.created_at)}</div>
       </li>`).join('') || '<li class="muted">Nenhum andamento registrado.</li>';
+
+    $('d-pubs-card').classList.toggle('hidden', !pubsProcesso.length);
+    $('d-pubs').innerHTML = pubsProcesso.map((x) => cartaoPub(x, false)).join('');
   }
   const semExtensao = (n) => n.replace(/\.[a-z0-9]{2,5}$/i, '');
 
@@ -552,7 +565,161 @@
   $('v-close').addEventListener('click', () => $('dlg-view').close());
   $('dlg-view').addEventListener('close', () => ($('v-frame').innerHTML = ''));
 
+  // ===================== DJEN: OABs e publicações =====================
+  const UFS = ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SE','SP','TO'];
+  $('oab-uf').innerHTML = UFS.map((u) => `<option ${u === 'RJ' ? 'selected' : ''}>${u}</option>`).join('');
+  let oabs = [];
+
+  // alguns tribunais mandam o texto com marcações HTML (<br>, <a>): mostra só o texto
+  const textoLimpo = (t) => String(t || '').replace(/<br\s*\/?>/gi, '\n').replace(/<\/p>/gi, '\n').replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/\n{3,}/g, '\n\n').trim();
+
+  function cartaoPub(x, comProcesso) {
+    const proc = x.processos;
+    return `<div class="pub ${x.lida ? '' : 'nova'}" data-pub="${x.id}">
+      <div class="topo">
+        <b>${brDate(x.data_disponibilizacao)}</b>
+        <span class="tipo">${esc([x.tipo_comunicacao, x.tipo_documento].filter(Boolean).join(' – ') || 'Publicação')}</span>
+        <span class="meta">${esc([x.sigla_tribunal, x.nome_orgao].filter(Boolean).join(' · '))}</span>
+        ${x.lida ? '' : '<span class="badge">nova</span>'}
+      </div>
+      ${comProcesso ? `<div class="meta">Processo <a href="#/p/${x.processo_id}">${esc(x.numero_mascara || x.numero_processo)}</a>${proc?.titulo ? ' · ' + esc(proc.titulo) : ''}${x.nome_classe ? ' · ' + esc(x.nome_classe) : ''}</div>` : ''}
+      <div class="meta">OAB ${esc((x.oabs || []).join(', '))}</div>
+      ${x.texto ? `<p class="texto">${esc(textoLimpo(x.texto))}</p>` : ''}
+      <div class="acoes">
+        ${x.texto && x.texto.length > 220 ? '<button data-pact="abrir">Ler tudo</button>' : ''}
+        ${x.link ? `<a class="btn" href="${esc(x.link)}" target="_blank" rel="noopener">Inteiro teor ↗</a>` : ''}
+        <button data-pact="lida">${x.lida ? 'Marcar como não lida' : 'Marcar como lida'}</button>
+      </div>
+    </div>`;
+  }
+
+  async function acaoPub(ev) {
+    const b = ev.target.closest('button[data-pact]'); if (!b) return;
+    const card = b.closest('.pub'); const id = card.dataset.pub;
+    if (b.dataset.pact === 'abrir') { card.classList.toggle('aberta'); b.textContent = card.classList.contains('aberta') ? 'Recolher' : 'Ler tudo'; return; }
+    const lida = !card.classList.contains('nova') ? false : true;
+    const { error } = await sb.from('publicacoes').update({ lida }).eq('id', id);
+    if (error) return fail(error);
+    card.classList.toggle('nova', !lida);
+    card.querySelector('.badge')?.remove();
+    if (!lida) card.querySelector('.topo').insertAdjacentHTML('beforeend', '<span class="badge">nova</span>');
+    b.textContent = lida ? 'Marcar como não lida' : 'Marcar como lida';
+    contarNaoLidas();
+  }
+  $('pub-lista').addEventListener('click', acaoPub);
+  $('d-pubs').addEventListener('click', acaoPub);
+
+  async function contarNaoLidas() {
+    const { count } = await sb.from('publicacoes').select('id', { count: 'exact', head: true }).eq('lida', false);
+    const el = $('pub-nao-lidas');
+    el.textContent = count || ''; el.classList.toggle('hidden', !count);
+  }
+
+  // abas Processos / Publicações
+  let aba = 'processos';
+  $('abas').addEventListener('click', (ev) => {
+    const b = ev.target.closest('button[data-aba]'); if (!b) return;
+    aba = b.dataset.aba;
+    document.querySelectorAll('#abas button').forEach((x) => x.classList.toggle('active', x === b));
+    $('aba-processos').classList.toggle('hidden', aba !== 'processos');
+    $('aba-publicacoes').classList.toggle('hidden', aba !== 'publicacoes');
+    if (aba === 'publicacoes') carregarPubs(true);
+  });
+
+  const POR_PAGINA = 50;
+  let pubPagina = 0, pubTimer;
+  async function carregarPubs(reset) {
+    if (reset) { pubPagina = 0; $('pub-lista').innerHTML = '<p class="muted">Carregando…</p>'; }
+    let q = sb.from('publicacoes').select('*, processos(titulo)', { count: 'exact' })
+      .order('data_disponibilizacao', { ascending: false }).order('created_at', { ascending: false })
+      .range(pubPagina * POR_PAGINA, pubPagina * POR_PAGINA + POR_PAGINA - 1);
+    if ($('pub-filtro').value === 'nao-lidas') q = q.eq('lida', false);
+    const termo = $('pub-q').value.trim().replace(/[%,()]/g, ' ');
+    if (termo) {
+      const dig = termo.replace(/\D/g, '');
+      const t = termo.replace(/\s+/g, '*');
+      q = q.or([`texto.ilike.*${t}*`, `nome_orgao.ilike.*${t}*`, `sigla_tribunal.ilike.*${t}*`, `tipo_documento.ilike.*${t}*`,
+        `tipo_comunicacao.ilike.*${t}*`, `nome_classe.ilike.*${t}*`, dig.length >= 4 ? `numero_processo.ilike.*${dig}*` : null].filter(Boolean).join(','));
+    }
+    const { data, count, error } = await q;
+    if (error) return fail(error);
+    const html = data.map((x) => cartaoPub(x, true)).join('');
+    if (reset) $('pub-lista').innerHTML = html || `<p class="muted">${oabs.length || termo ? 'Nenhuma publicação encontrada.' : 'Nenhuma OAB cadastrada ainda. Clique em <b>⚖️ OABs</b> para começar.'}</p>`;
+    else $('pub-lista').insertAdjacentHTML('beforeend', html);
+    pubPagina++;
+    $('pub-mais').classList.toggle('hidden', pubPagina * POR_PAGINA >= (count || 0));
+    $('pub-info').textContent = count ? `${count} publicação(ões)${$('pub-filtro').value === 'nao-lidas' ? ' não lida(s)' : ''}.` : '';
+    contarNaoLidas();
+  }
+  $('pub-mais').addEventListener('click', () => carregarPubs(false));
+  $('pub-filtro').addEventListener('change', () => carregarPubs(true));
+  $('pub-q').addEventListener('input', () => { clearTimeout(pubTimer); pubTimer = setTimeout(() => carregarPubs(true), 350); });
+  $('pub-marcar-todas').addEventListener('click', async () => {
+    if (!confirm('Marcar todas as publicações como lidas?')) return;
+    const { error } = await sb.from('publicacoes').update({ lida: true }).eq('lida', false);
+    if (error) return fail(error);
+    carregarPubs(true);
+  });
+
+  // OABs
+  async function carregarOabs() {
+    const { data, error } = await sb.from('oabs').select('*').order('created_at');
+    if (error) return fail(error);
+    oabs = data;
+    $('oabs-body').innerHTML = oabs.map((o) => `<tr data-oab="${o.id}">
+      <td><b>${esc(o.numero)}/${esc(o.uf)}</b>${o.ativo ? '' : ' <span class="pill">pausada</span>'}</td>
+      <td>${esc(o.nome || '')}</td>
+      <td class="small">${o.ultima_busca ? brDateTime(o.ultima_busca) : '<span class="muted">ainda não buscou</span>'}</td>
+      <td class="small ${String(o.ultimo_resultado || '').startsWith('Erro') ? 'error' : 'muted'}">${esc(o.ultimo_resultado || '')}</td>
+      <td class="actions"><button data-oact="ativo">${o.ativo ? 'Pausar' : 'Retomar'}</button> <button class="danger" data-oact="del">×</button></td>
+    </tr>`).join('') || '<tr><td colspan="5" class="muted">Nenhuma OAB cadastrada.</td></tr>';
+  }
+  async function abrirOabs() { await carregarOabs(); $('dlg-oabs').showModal(); }
+  $('btn-oabs').addEventListener('click', abrirOabs);
+  $('btn-oabs2').addEventListener('click', abrirOabs);
+  $('oab-fechar').addEventListener('click', () => $('dlg-oabs').close());
+  $('form-oab').addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    const numero = $('oab-num').value.trim().toUpperCase().replace(/[^0-9A-Z]/g, '');
+    const { error } = await sb.from('oabs').insert({ numero, uf: $('oab-uf').value, nome: $('oab-nome').value.trim() || null });
+    if (error) return fail(/duplicate/i.test(error.message) ? new Error('Essa OAB já está cadastrada.') : error);
+    $('oab-num').value = ''; $('oab-nome').value = '';
+    await carregarOabs();
+    buscarAgora();
+  });
+  $('oabs-body').addEventListener('click', async (ev) => {
+    const b = ev.target.closest('button[data-oact]'); if (!b) return;
+    const o = oabs.find((x) => x.id === b.closest('tr').dataset.oab);
+    if (b.dataset.oact === 'del') {
+      if (!confirm(`Parar de monitorar a OAB ${o.numero}/${o.uf}? As publicações e processos já trazidos continuam.`)) return;
+      const { error } = await sb.from('oabs').delete().eq('id', o.id); if (error) return fail(error);
+    } else {
+      const { error } = await sb.from('oabs').update({ ativo: !o.ativo }).eq('id', o.id); if (error) return fail(error);
+    }
+    carregarOabs();
+  });
+
+  // A API do CNJ só aceita acesso do Brasil: a função roda em São Paulo (x-region).
+  async function buscarAgora() {
+    const b = $('oab-buscar'); b.disabled = true; b.textContent = 'Buscando no DJEN…';
+    toast('Buscando publicações no DJEN… isso pode levar até 1–2 minutos.');
+    try {
+      const { data, error } = await sb.functions.invoke('djen', { body: {}, headers: { 'x-region': 'sa-east-1' } });
+      if (error) throw error;
+      const r = data.resultado || [];
+      const novas = r.reduce((t, x) => t + (x.novas || 0), 0), procs = r.reduce((t, x) => t + (x.processosNovos || 0), 0);
+      const erros = r.filter((x) => x.erro);
+      toast(erros.length ? `Busca com erro: ${erros[0].erro}` : `Busca concluída: ${novas} publicação(ões) nova(s)${procs ? `, ${procs} processo(s) novo(s)` : ''}.`, !!erros.length);
+    } catch (e) { fail(e); }
+    b.disabled = false; b.textContent = '🔄 Buscar agora';
+    await carregarOabs();
+    if (aba === 'publicacoes') carregarPubs(true); else carregarLista();
+  }
+  $('oab-buscar').addEventListener('click', buscarAgora);
+
   // ===================== Início =====================
-  Auth.ready.then(async ({ user: u }) => { user = u; await carregarPrefs(); route(); });
+  Auth.ready.then(async ({ user: u }) => { user = u; await carregarPrefs(); route(); carregarOabsSilencioso(); contarNaoLidas(); });
+  async function carregarOabsSilencioso() { const { data } = await sb.from('oabs').select('*'); oabs = data || []; }
   window.Processos = { parseCNJ };
 })();
