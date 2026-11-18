@@ -3,10 +3,10 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>mantini.ia.br — projetos de Paulo Mantini</title>
-  <meta name="description" content="Mostruário dos projetos de Paulo Mantini: idbike, Remendo e ferramentas pessoais.">
-  <meta property="og:title" content="mantini.ia.br — projetos de Paulo Mantini">
-  <meta property="og:description" content="idbike, Remendo e ferramentas pessoais. Ideias que viraram produto.">
+  <title>mantini.ia.br — sistemas e conteúdos digitais</title>
+  <meta name="description" content="mantini.ia.br: produção de sistemas e conteúdos digitais. Conheça o idbike, o Remendo e outros projetos.">
+  <meta property="og:title" content="mantini.ia.br — sistemas e conteúdos digitais">
+  <meta property="og:description" content="Produção de sistemas e conteúdos digitais: da ideia ao produto no ar. idbike, Remendo e mais.">
   <meta property="og:image" content="https://www.mantini.ia.br/assets/icon-512.png">
   <meta property="og:type" content="website">
   <link rel="stylesheet" href="assets/base.css?v=20261118a">
@@ -29,6 +29,7 @@
     .hero-in { max-width: 1100px; margin: 0 auto; display: flex; gap: 40px; align-items: center; position: relative; }
     .hero-in > img { width: 150px; height: 150px; flex: none; }
     .hero h1 { font-family: 'Orbitron', system-ui, sans-serif; font-weight: 800; font-size: clamp(30px, 5vw, 46px); margin: 0 0 10px; letter-spacing: -.01em; }
+    .hero .tag-hero { text-transform: uppercase; letter-spacing: .14em; font-size: 13px; font-weight: 700; color: var(--accent); margin: 0 0 6px; }
     .hero h1 .ia { color: var(--accent); } .hero h1 .tld { color: #9aa1ad; font-weight: 800; }
     .hero p.lead { font-size: 19px; color: #c9cdd4; margin: 0 0 22px; max-width: 620px; }
     .hero .cta { display: flex; gap: 10px; flex-wrap: wrap; }
@@ -57,7 +58,7 @@
     .projeto .tags span { font-size: 12px; padding: 2px 10px; border-radius: 999px; background: var(--bg); border: 1px solid var(--line); color: var(--muted); }
     .projeto .link { font-weight: 600; color: var(--accent); }
 
-    /* ferramentas pessoais */
+    /* ferramentas internas */
     .sys { display: flex; flex-direction: column; gap: 8px; color: var(--text); }
     .sys:hover { border-color: var(--accent); text-decoration: none; }
     .sys .ico { width: 52px; height: 52px; }
@@ -72,6 +73,7 @@
 
     footer.rodape { border-top: 1px solid var(--line); padding: 24px; text-align: center; color: var(--muted); font-size: 14px; }
     footer.rodape a { color: var(--text); font-weight: 600; }
+    footer.rodape .ia { color: var(--accent); }
   </style>
 </head>
 <body>
@@ -82,10 +84,11 @@
       <img src="assets/icon.svg" width="150" height="150" alt="">
       <div>
         <h1>mantini<span class="ia">.ia</span><span class="tld">.br</span></h1>
-        <p class="lead">Mostruário dos projetos de <b>Paulo Mantini</b>: produtos abertos ao público e ferramentas que uso no dia a dia de trabalho.</p>
+        <p class="tag-hero">Sistemas e conteúdos digitais</p>
+        <p class="lead">Da ideia ao produto no ar: aplicativos, plataformas de dados abertos e ferramentas sob medida, com o conteúdo que faz cada um deles chegar a quem precisa.</p>
         <div class="cta">
           <a class="principal" href="#projetos">Ver projetos</a>
-          <a class="secundario" href="https://paulomantini.com.br" target="_blank" rel="noopener">Meu perfil ↗</a>
+          <a class="secundario" href="#ferramentas">Ferramentas internas</a>
         </div>
       </div>
     </div>
@@ -96,7 +99,7 @@
     <section class="bloco" id="projetos">
       <div class="titulo-secao">
         <h2>Projetos</h2>
-        <p>Abertos ao público.</p>
+        <p>Produtos no ar, abertos ao público.</p>
       </div>
       <div class="projetos">
         <a class="projeto" href="https://idbike.com.br" target="_blank" rel="noopener">
@@ -125,8 +128,8 @@
     <!-- ===================== FERRAMENTAS PESSOAIS ===================== -->
     <section class="bloco" id="ferramentas">
       <div class="titulo-secao">
-        <h2>Ferramentas pessoais</h2>
-        <p>Sistemas de uso pessoal e de trabalho. <span id="login-hint">Acesso com login.</span></p>
+        <h2>Ferramentas internas</h2>
+        <p>Sistemas de uso interno. <span id="login-hint">Acesso com login.</span></p>
       </div>
       <div id="aud-portal" class="notice hidden"></div>
       <div class="grid">
@@ -151,7 +154,7 @@
   </main>
 
   <footer class="rodape">
-    © <span id="ano">2026</span> Paulo Mantini · <a href="https://paulomantini.com.br" target="_blank" rel="noopener">paulomantini.com.br</a>
+    © <span id="ano">2026</span> <b>mantini<span class="ia">.ia</span>.br</b> · sistemas e conteúdos digitais
   </footer>
 
   <script src="assets/vendor/supabase-2.119.0.js"></script>
