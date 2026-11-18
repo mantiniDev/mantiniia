@@ -129,6 +129,13 @@
             <tbody id="lixeira-body"></tbody>
           </table>
         </div>
+        <h3 style="margin:22px 0 8px">Documentos na lixeira</h3>
+        <div class="card tabela-wrap">
+          <table class="lista">
+            <thead><tr><th>Documento</th><th>Processo</th><th>Excluído em</th><th>Apagado de vez em</th><th></th></tr></thead>
+            <tbody id="docs-lixeira-body"></tbody>
+          </table>
+        </div>
       </div>
 
       <!-- publicações do DJEN -->
@@ -215,6 +222,10 @@
             <thead><tr><th>Arquivo</th><th>Enviado em</th><th class="num">Tamanho</th><th></th></tr></thead>
             <tbody id="docs-body"></tbody>
           </table>
+          <details id="docs-lixo" class="hidden" style="margin-top:10px">
+            <summary class="small muted">🗑️ Lixeira de documentos (<span id="docs-lixo-qtd"></span>) — ficam 30 dias e podem ser restaurados</summary>
+            <table><tbody id="docs-lixo-body"></tbody></table>
+          </details>
         </div>
         <div class="card">
           <h2>Histórico de andamentos</h2>
@@ -353,6 +364,6 @@
   <script src="../assets/export.js"></script>
   <script src="../assets/agenda.js?v=20261116a"></script>
   <script src="../assets/pdf-compress.js?v=20261116a"></script>
-  <script src="app.js?v=20261118b"></script>
+  <script src="app.js?v=20261118c"></script>
 </body>
 </html>

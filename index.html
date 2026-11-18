@@ -56,7 +56,10 @@
     .projeto p { margin: 0; color: var(--muted); }
     .projeto .tags { display: flex; gap: 6px; flex-wrap: wrap; margin-top: auto; padding-top: 8px; }
     .projeto .tags span { font-size: 12px; padding: 2px 10px; border-radius: 999px; background: var(--bg); border: 1px solid var(--line); color: var(--muted); }
-    .projeto .link { font-weight: 600; color: var(--accent); }
+    .projeto h3 a { color: var(--text); }
+    .projeto .links { display: flex; flex-wrap: wrap; gap: 8px 18px; padding-top: 4px; }
+    .projeto .links a { font-weight: 600; color: var(--accent); display: inline-flex; align-items: center; gap: 6px; }
+    .projeto .links svg { width: 17px; height: 17px; }
 
     /* ferramentas internas */
     .sys { display: flex; flex-direction: column; gap: 8px; color: var(--text); }
@@ -102,26 +105,32 @@
         <p>Produtos no ar, abertos ao público.</p>
       </div>
       <div class="projetos">
-        <a class="projeto" href="https://idbike.com.br" target="_blank" rel="noopener">
-          <img src="assets/projetos/idbike.jpg" width="1200" height="630" alt="idbike — Sua bike, peça por peça" loading="lazy">
+        <div class="projeto">
+          <a href="https://idbike.com.br" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="assets/projetos/idbike.jpg" width="1200" height="630" alt="idbike — Sua bike, peça por peça" loading="lazy"></a>
           <div class="corpo">
-            <h3>idbike</h3>
+            <h3><a href="https://idbike.com.br" target="_blank" rel="noopener">idbike</a></h3>
             <p class="slogan">Sua bike, peça por peça.</p>
             <p>App para ciclistas: bikes, peças, manutenções e quilometragem num lugar só, com Strava e Garmin. Avisa quando cada peça está perto de trocar e registra a bike pelo número do quadro.</p>
             <div class="tags"><span>App (instalável)</span><span>Strava</span><span>Ciclismo</span></div>
-            <span class="link">idbike.com.br ↗</span>
+            <div class="links">
+              <a href="https://idbike.com.br" target="_blank" rel="noopener">idbike.com.br ↗</a>
+              <a href="https://www.instagram.com/idbike.br/" target="_blank" rel="noopener" class="insta"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="17.3" cy="6.7" r="1.3" fill="currentColor"/></svg>@idbike.br</a>
+            </div>
           </div>
-        </a>
-        <a class="projeto" href="https://remendo.com.br" target="_blank" rel="noopener">
-          <img src="assets/projetos/remendo.jpg" width="1200" height="630" alt="Remendo — Cada emenda tem um destino" loading="lazy">
+        </div>
+        <div class="projeto">
+          <a href="https://remendo.com.br" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="assets/projetos/remendo.jpg" width="1200" height="630" alt="Remendo — Cada emenda tem um destino" loading="lazy"></a>
           <div class="corpo">
-            <h3>Remendo</h3>
+            <h3><a href="https://remendo.com.br" target="_blank" rel="noopener">Remendo</a></h3>
             <p class="slogan">Siga o fio de cada emenda.</p>
             <p>Emendas parlamentares: quanto foi empenhado e quanto foi pago, por parlamentar, área, partido e estado. Dados oficiais, sem partido.</p>
             <div class="tags"><span>Dados abertos</span><span>Transparência</span><span>Política</span></div>
-            <span class="link">remendo.com.br ↗</span>
+            <div class="links">
+              <a href="https://remendo.com.br" target="_blank" rel="noopener">remendo.com.br ↗</a>
+              <a href="https://www.instagram.com/remendo.br/" target="_blank" rel="noopener" class="insta"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="17.3" cy="6.7" r="1.3" fill="currentColor"/></svg>@remendo.br</a>
+            </div>
           </div>
-        </a>
+        </div>
       </div>
     </section>
 

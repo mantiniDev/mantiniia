@@ -66,7 +66,12 @@ async function montar(userId: string, prefs: Prefs) {
   if (e3) throw e3;
   const excluidos = (lixo ?? []).filter((p) => p.excluido_em! >= desde);
   const expirando = (lixo ?? []).filter((p) => Date.parse(p.excluido_em!) + (DIAS_LIXEIRA - 3) * 864e5 <= Date.now());
-  return { auds, parados, pubs: pubs ?? [], processosNovos, excluidos, expirando };
+  // documentos excluídos nas últimas 24 h (de processos que não estão na lixeira)
+  const { data: dl, error: e4 } = await supabase.from('documentos').select('nome, processo_id, excluido_em, processos!inner(numero, excluido_em)')
+    .eq('user_id', userId).gte('excluido_em', desde).is('processos.excluido_em', null);
+  if (e4) throw e4;
+  const docsExcluidos = (dl ?? []).map((d) => ({ nome: d.nome, processo_id: d.processo_id, excluido_em: d.excluido_em!, numero: (d.processos as unknown as { numero: string }).numero }));
+  return { auds, parados, pubs: pubs ?? [], processosNovos, excluidos, expirando, docsExcluidos };
 }
 const MAX_PUBS_EMAIL = 40;
 const DIAS_LIXEIRA = 30;
@@ -86,14 +91,25 @@ async function esvaziarLixeira() {
     }
     await supabase.from('processos').delete().eq('id', p.id);
   }
-  return { processos: velhos?.length ?? 0, arquivos };
+  // documentos na lixeira há mais de 30 dias
+  const { data: docsVelhos, error: e2 } = await supabase.from('documentos').select('id, storage_path').not('excluido_em', 'is', null).lt('excluido_em', limite);
+  if (e2) throw e2;
+  let documentos = 0;
+  for (let i = 0; i < (docsVelhos ?? []).length; i += 100) {
+    const lote = docsVelhos!.slice(i, i + 100);
+    const { error: e3 } = await supabase.storage.from('documentos').remove(lote.map((d) => d.storage_path));
+    if (e3) { console.error('lixeira: documentos não removidos', e3.message); continue; }
+    await supabase.from('documentos').delete().in('id', lote.map((d) => d.id));
+    documentos += lote.length; arquivos += lote.length;
+  }
+  return { processos: velhos?.length ?? 0, documentos, arquivos };
 }
 // o processo ligado vem como objeto (relação muitos-para-um); sem tipos gerados, converte aqui
 type ProcResumo = { titulo?: string; created_at?: string } | null;
 function procDe(x: { processos: unknown }): ProcResumo { return x.processos as ProcResumo; }
 
 type Dados = Awaited<ReturnType<typeof montar>>;
-function html({ auds, parados, pubs, processosNovos, excluidos, expirando }: Dados, prefs: Prefs) {
+function html({ auds, parados, pubs, processosNovos, excluidos, expirando, docsExcluidos }: Dados, prefs: Prefs) {
   const link = (id: string, t: string) => `<a href="${SITE}/processos/#/p/${id}" style="color:#e63946;text-decoration:none">${esc(t)}</a>`;
   const cor = (n: number) => (n <= 1 ? '#b91c1c' : n <= 7 ? '#c2410c' : '#6b7280');
   const secAud = auds.length ? `
@@ -127,8 +143,10 @@ function html({ auds, parados, pubs, processosNovos, excluidos, expirando }: Dad
     </table>
     ${pubs.length > MAX_PUBS_EMAIL ? `<p style="color:#6b7280">… e mais ${pubs.length - MAX_PUBS_EMAIL}. Veja todas na aba <a href="${SITE}/processos/" style="color:#e63946">Publicações (DJEN)</a>.</p>` : ''}` : '';
   const dataLixo = (iso: string) => new Date(Date.parse(iso) + DIAS_LIXEIRA * 864e5).toLocaleDateString('pt-BR', { timeZone: TZ });
-  const secLixo = excluidos.length || expirando.length ? `
+  const secLixo = excluidos.length || expirando.length || docsExcluidos.length ? `
     <h2 style="font-size:16px;margin:24px 0 8px">🗑️ Lixeira</h2>
+    ${docsExcluidos.length ? `<p style="margin:0 0 6px">Documento(s) excluído(s) nas últimas 24 h — podem ser restaurados até a data indicada:</p>
+      <ul style="margin:0 0 10px;padding-left:18px">${docsExcluidos.map((d) => `<li>${esc(d.nome)} · processo ${link(d.processo_id, d.numero)} <span style="color:#6b7280">(até ${dataLixo(d.excluido_em)})</span></li>`).join('')}</ul>` : ''}
     ${excluidos.length ? `<p style="margin:0 0 6px">Excluído(s) nas últimas 24 h — se não foi você, restaure pela lixeira:</p>
       <ul style="margin:0 0 10px;padding-left:18px">${excluidos.map((p) => `<li>${link(p.id, p.numero)}${p.titulo ? ' · ' + esc(p.titulo) : ''} <span style="color:#6b7280">(apagado de vez em ${dataLixo(p.excluido_em!)})</span></li>`).join('')}</ul>` : ''}
     ${expirando.length ? `<p style="margin:0 0 6px;color:#b91c1c">Serão apagados definitivamente em até 3 dias:</p>
@@ -142,7 +160,7 @@ function html({ auds, parados, pubs, processosNovos, excluidos, expirando }: Dad
   </div>`;
 }
 
-function assunto({ auds, parados, pubs, excluidos, expirando }: Dados) {
+function assunto({ auds, parados, pubs, excluidos, expirando, docsExcluidos }: Dados) {
   const partes: string[] = [];
   const hoje = auds.filter((a) => diasAte(a.data_hora) === 0).length;
   const amanha = auds.filter((a) => diasAte(a.data_hora) === 1).length;
@@ -152,6 +170,7 @@ function assunto({ auds, parados, pubs, excluidos, expirando }: Dados) {
   if (pubs.length) partes.push(`${pubs.length} publicação(ões) no DJEN`);
   if (parados.length) partes.push(`${parados.length} processo(s) sem andamento`);
   if (excluidos.length) partes.push(`${excluidos.length} excluído(s)`);
+  if (docsExcluidos.length) partes.push(`${docsExcluidos.length} documento(s) excluído(s)`);
   if (expirando.length) partes.push(`${expirando.length} saindo da lixeira`);
   return 'Processos: ' + (partes.join(' · ') || 'tudo em dia');
 }
@@ -209,8 +228,8 @@ Deno.serve(async (req) => {
     const prefs = prefsDe(u.id);
     if (!teste && !prefs.email_diario) { resultado.push({ email: u.email, enviado: false, motivo: 'e-mail diário desligado' }); continue; }
     const d = await montar(u.id, prefs);
-    const { auds, parados, pubs, excluidos, expirando } = d;
-    if (!teste && !auds.length && !parados.length && !pubs.length && !excluidos.length && !expirando.length) { resultado.push({ email: u.email, enviado: false, motivo: 'nada a avisar' }); continue; }
+    const { auds, parados, pubs, excluidos, expirando, docsExcluidos } = d;
+    if (!teste && !auds.length && !parados.length && !pubs.length && !excluidos.length && !expirando.length && !docsExcluidos.length) { resultado.push({ email: u.email, enviado: false, motivo: 'nada a avisar' }); continue; }
     const subject = (teste ? '[Teste] ' : '') + assunto(d);
     const body = html(d, prefs);
     if (dry) { resultado.push({ email: u.email, subject, audiencias: auds.length, parados: parados.length, publicacoes: pubs.length, html: body }); continue; }

@@ -77,7 +77,7 @@ Controle pessoal de processos judiciais:
   Brasil). Cada publicação entra uma vez só (id e hash); processo novo é cadastrado automaticamente
   ("Parte A x Parte B") e a publicação vira andamento (marcado "DJEN"). Aba **Publicações (DJEN)** com busca,
   não lidas e inteiro teor;
-- **Lixeira**: "Excluir" move o processo para a lixeira (aviso com **Desfazer**); fica 30 dias com tudo
+- **Lixeira** (processos e documentos): "Excluir" move para a lixeira (aviso com **Desfazer**); fica 30 dias com tudo
   (documentos, andamentos, audiências, publicações) e pode ser restaurado; depois o servidor apaga de vez,
   inclusive os arquivos. O e-mail diário avisa exclusões das últimas 24 h e o que sai da lixeira em até 3 dias;
 - **e-mail diário às 7h** (botão ✉️ Avisos): audiências próximas, publicações novas do DJEN (últimas 24 h, com

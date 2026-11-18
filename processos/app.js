@@ -10,7 +10,7 @@
   let user = null;
   let processos = [];      // lista (com contagem de documentos)
   let atual = null;        // processo aberto no detalhe
-  let docs = [], andamentos = [], audiencias = [], pubsProcesso = [];
+  let docs = [], docsLixo = [], andamentos = [], audiencias = [], pubsProcesso = [];
   let editingAudId = null;
   let editingAndId = null;
 
@@ -93,7 +93,7 @@
     // o Supabase entrega no máximo 1000 linhas por consulta: busca em páginas
     const todos = [];
     for (let de = 0; ; de += 1000) {
-      const { data, error } = await sb.from('processos').select('*, documentos(count), audiencias(id, data_hora, tipo, local, realizada)').is('excluido_em', null)
+      const { data, error } = await sb.from('processos').select('*, documentos(count), audiencias(id, data_hora, tipo, local, realizada)').is('excluido_em', null).is('documentos.excluido_em', null)
         .order('updated_at', { ascending: false }).order('id').range(de, de + 999);
       if (error) return fail(error);
       todos.push(...data);
@@ -263,16 +263,57 @@
     if (atual?.id === p.id) location.hash = '#/'; else carregarLixeira();
   }
 
+  // ---------- lixeira de documentos ----------
+  async function restaurarDoc(d) {
+    const { error } = await sb.from('documentos').update({ excluido_em: null }).eq('id', d.id);
+    if (error) {
+      if (/duplicate key|documentos_um_completo/i.test(error.message)) return toast('Já existe outro arquivo de processo completo neste processo. Apague-o antes de restaurar este.', true);
+      return fail(error);
+    }
+    toast(`"${d.nome}" restaurado.`);
+    if (atual?.id === d.processo_id) abrirProcesso(d.processo_id);
+    if (aba === 'lixeira') carregarLixeira();
+  }
+  async function apagarDocDeVez(d) {
+    if (!confirm(`Apagar DEFINITIVAMENTE o documento "${d.nome}"? Isso não pode ser desfeito.`)) return;
+    const rm = await sb.storage.from(BUCKET).remove([d.storage_path]); if (rm.error) return fail(rm.error);
+    const del = await sb.from('documentos').delete().eq('id', d.id); if (del.error) return fail(del.error);
+    toast('Documento apagado definitivamente.');
+    if (atual?.id === d.processo_id) abrirProcesso(d.processo_id);
+    if (aba === 'lixeira') carregarLixeira();
+  }
+  const linhaDocLixo = (d, comProcesso) => {
+    const resta = Math.max(0, Math.ceil((venceEm(d.excluido_em) - Date.now()) / 864e5));
+    return `<tr data-doc="${d.id}">
+      <td>${esc(d.nome)}${d.categoria === 'processo_completo' ? ' <span class="pill">processo completo</span>' : ''}</td>
+      ${comProcesso ? `<td style="white-space:nowrap"><a href="#/p/${d.processo_id}">${esc(d.processos?.numero || '')}</a></td><td class="small">${brDateTime(d.excluido_em)}</td>` : ''}
+      <td class="small ${resta <= 3 ? 'stale' : 'muted'}">${comProcesso ? '' : 'apagado de vez em '}${venceEm(d.excluido_em).toLocaleDateString('pt-BR')} (${resta} dia${resta === 1 ? '' : 's'})</td>
+      <td class="actions"><button data-dact="restaurar" class="primary">Restaurar</button> <button data-dact="apagar" class="danger">Apagar de vez</button></td>
+    </tr>`;
+  };
+  let docsLixeiraGeral = [];
+  function acaoDocLixo(lista) {
+    return (ev) => {
+      const b = ev.target.closest('button[data-dact]'); if (!b) return;
+      const d = lista().find((x) => x.id === b.closest('tr').dataset.doc);
+      if (b.dataset.dact === 'restaurar') restaurarDoc(d); else apagarDocDeVez(d);
+    };
+  }
+  $('docs-lixo-body').addEventListener('click', acaoDocLixo(() => docsLixo));
+  $('docs-lixeira-body').addEventListener('click', acaoDocLixo(() => docsLixeiraGeral));
+
   // ---------- lixeira ----------
   const DIAS_LIXEIRA = 30;
   const venceEm = (iso) => new Date(Date.parse(iso) + DIAS_LIXEIRA * 864e5);
   let lixo = [];
+  let lixeiraSeq = 0; // ignora respostas antigas quando há cliques em sequência
   async function carregarLixeira() {
+    const seq = ++lixeiraSeq;
     const { data, error } = await sb.from('processos').select('id, numero, titulo, tribunal, excluido_em, documentos(count)')
       .not('excluido_em', 'is', null).order('excluido_em', { ascending: false });
     if (error) return fail(error);
+    if (seq !== lixeiraSeq) return;
     lixo = data;
-    contarLixeira(lixo.length);
     $('lixeira-body').innerHTML = lixo.map((p) => {
       const resta = Math.max(0, Math.ceil((venceEm(p.excluido_em) - Date.now()) / 864e5));
       return `<tr data-id="${p.id}">
@@ -283,12 +324,25 @@
         <td class="small ${resta <= 3 ? 'stale' : ''}">${venceEm(p.excluido_em).toLocaleDateString('pt-BR')} (${resta} dia${resta === 1 ? '' : 's'})</td>
         <td class="actions"><button data-lact="restaurar" class="primary">Restaurar</button> <button data-lact="apagar" class="danger">Apagar de vez</button></td>
       </tr>`;
-    }).join('') || '<tr><td colspan="6" class="muted">A lixeira está vazia.</td></tr>';
+    }).join('') || '<tr><td colspan="6" class="muted">Nenhum processo na lixeira.</td></tr>';
+
+    // documentos excluídos de processos que NÃO estão na lixeira (os outros vão junto com o processo)
+    const { data: ds, error: e2 } = await sb.from('documentos').select('*, processos(numero, titulo, excluido_em)')
+      .not('excluido_em', 'is', null).order('excluido_em', { ascending: false });
+    if (e2) return fail(e2);
+    if (seq !== lixeiraSeq) return;
+    docsLixeiraGeral = ds.filter((d) => !d.processos?.excluido_em);
+    $('docs-lixeira-body').innerHTML = docsLixeiraGeral.map((d) => linhaDocLixo(d, true)).join('') || '<tr><td colspan="5" class="muted">Nenhum documento na lixeira.</td></tr>';
+    contarLixeira(lixo.length + docsLixeiraGeral.length);
   }
   function contarLixeira(n) { $('lixeira-qtd').textContent = n || ''; $('lixeira-qtd').classList.toggle('hidden', !n); }
   async function contarLixeiraServidor() {
-    const { count } = await sb.from('processos').select('id', { count: 'exact', head: true }).not('excluido_em', 'is', null);
-    contarLixeira(count);
+    const [a, b] = await Promise.all([
+      sb.from('processos').select('id', { count: 'exact', head: true }).not('excluido_em', 'is', null),
+      sb.from('documentos').select('id, processos(excluido_em)').not('excluido_em', 'is', null),
+    ]);
+    if (a.error || b.error) return console.warn('contador da lixeira', a.error || b.error);
+    contarLixeira((a.count || 0) + (b.data || []).filter((d) => !d.processos?.excluido_em).length);
   }
   $('lixeira-body').addEventListener('click', (ev) => {
     const b = ev.target.closest('button[data-lact]'); if (!b) return;
@@ -315,7 +369,8 @@
     if (p.error) { fail(p.error); location.hash = '#/'; return; }
     if (d.error) return fail(d.error);
     if (a.error) return fail(a.error);
-    atual = p.data; docs = d.data; andamentos = a.data; audiencias = au.data;
+    atual = p.data; docs = d.data.filter((x) => !x.excluido_em); docsLixo = d.data.filter((x) => x.excluido_em);
+    andamentos = a.data; audiencias = au.data;
     renderDetalhe();
   }
 
@@ -390,6 +445,10 @@
         ${a.observacao ? `<div class="small muted">${esc(a.observacao)}</div>` : ''}
         <div class="small muted">registrado em ${brDateTime(a.created_at)}</div>
       </li>`).join('') || '<li class="muted">Nenhum andamento registrado.</li>';
+
+    $('docs-lixo').classList.toggle('hidden', !docsLixo.length);
+    $('docs-lixo-qtd').textContent = docsLixo.length;
+    $('docs-lixo-body').innerHTML = docsLixo.map((d) => linhaDocLixo(d, false)).join('');
 
     $('d-pubs-card').classList.toggle('hidden', !pubsProcesso.length);
     $('d-pubs').innerHTML = pubsProcesso.map((x) => cartaoPub(x, false)).join('');
@@ -601,10 +660,10 @@
       if (el.dataset.act === 'ver') return await ver(d);
       if (el.dataset.act === 'baixar') { location.href = await urlAssinada(d, true); return; }
       if (el.dataset.act === 'apagar') {
-        if (!confirm(`Apagar o documento "${d.nome}"?`)) return;
-        const rm = await sb.storage.from(BUCKET).remove([d.storage_path]); if (rm.error) throw rm.error;
-        const del = await sb.from('documentos').delete().eq('id', d.id); if (del.error) throw del.error;
-        toast('Documento apagado.'); abrirProcesso(atual.id);
+        if (!confirm(`Mover o documento "${d.nome}" para a lixeira? Ele fica 30 dias e pode ser restaurado.`)) return;
+        const up = await sb.from('documentos').update({ excluido_em: new Date().toISOString() }).eq('id', d.id); if (up.error) throw up.error;
+        await abrirProcesso(atual.id);
+        toastAcao(`"${d.nome}" movido para a lixeira.`, 'Desfazer', () => restaurarDoc(d));
       }
     } catch (e) { fail(e); }
   }
