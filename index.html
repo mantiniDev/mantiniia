@@ -191,8 +191,8 @@
       if (pf.data) Agenda.setAvisoDias(pf.data.dias_aviso_audiencia);
       const inicioHoje = new Date(); inicioHoje.setHours(0, 0, 0, 0);
       const { data, error } = await Auth.sb.from('audiencias')
-        .select('id, data_hora, tipo, local, realizada, processos(id, numero, titulo)')
-        .eq('realizada', false).gte('data_hora', inicioHoje.toISOString()).order('data_hora');
+        .select('id, data_hora, tipo, local, realizada, processos!inner(id, numero, titulo, excluido_em)')
+        .is('processos.excluido_em', null).eq('realizada', false).gte('data_hora', inicioHoje.toISOString()).order('data_hora');
       if (error || !data) return;
       const prox = Agenda.proximas(data);
       const box = document.getElementById('aud-portal');

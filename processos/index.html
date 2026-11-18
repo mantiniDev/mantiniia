@@ -73,6 +73,7 @@
     .pub .acoes button, .pub .acoes a.btn { padding: 3px 10px; font-size: 12px; }
     .tag-djen { display: inline-block; font-size: 11px; padding: 0 7px; border-radius: 999px; background: #e0e7ff; color: #3730a3; margin-left: 4px; vertical-align: middle; }
     @media (prefers-color-scheme: dark) { .tag-djen { background: #1e2a5a; color: #c7d2fe; } }
+    #toast button { margin-left: 12px; padding: 3px 12px; font-size: 13px; border-color: transparent; }
     #toast { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); background: var(--text); color: var(--bg); padding: 10px 16px; border-radius: 10px; font-size: 14px; display: none; z-index: 10; }
     .field small { color: var(--muted); }
     form .stack { display: flex; flex-direction: column; gap: 10px; }
@@ -91,6 +92,7 @@
       <nav class="tabs" id="abas">
         <button data-aba="processos" class="active">Processos</button>
         <button data-aba="publicacoes">Publicações (DJEN) <span id="pub-nao-lidas" class="badge hidden"></span></button>
+        <button data-aba="lixeira">🗑️ Lixeira <span id="lixeira-qtd" class="badge hidden"></span></button>
       </nav>
       <div id="aba-processos">
       <div id="alert-aud" class="notice hidden"></div>
@@ -117,6 +119,18 @@
       </div>
       </div>
 
+      <!-- lixeira -->
+      <div id="aba-lixeira" class="hidden">
+        <p class="small muted">Processos excluídos ficam aqui por <b>30 dias</b>, com documentos, andamentos, audiências e publicações.
+          Depois disso são apagados definitivamente, inclusive os arquivos.</p>
+        <div class="card tabela-wrap">
+          <table class="lista">
+            <thead><tr><th>Número</th><th>Título / partes</th><th>Excluído em</th><th class="num">Docs</th><th>Apagado de vez em</th><th></th></tr></thead>
+            <tbody id="lixeira-body"></tbody>
+          </table>
+        </div>
+      </div>
+
       <!-- publicações do DJEN -->
       <div id="aba-publicacoes" class="hidden">
         <div class="toolbar">
@@ -136,6 +150,7 @@
     <!-- ============ DETALHE ============ -->
     <section id="view-detail" class="hidden">
       <p><a href="#/">← Todos os processos</a></p>
+      <div id="alert-lixeira" class="notice hidden"></div>
       <div id="alert-proc" class="notice hidden"></div>
       <div class="card">
         <div class="head">
@@ -338,6 +353,6 @@
   <script src="../assets/export.js"></script>
   <script src="../assets/agenda.js?v=20261116a"></script>
   <script src="../assets/pdf-compress.js?v=20261116a"></script>
-  <script src="app.js?v=20261118a"></script>
+  <script src="app.js?v=20261118b"></script>
 </body>
 </html>

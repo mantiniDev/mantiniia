@@ -29,6 +29,13 @@
     t.style.background = isErr ? 'var(--danger)' : 'var(--text)';
     clearTimeout(toastTimer); toastTimer = setTimeout(() => (t.style.display = 'none'), isErr ? 6000 : 2500);
   }
+  function toastAcao(msg, rotulo, fn) {
+    const t = $('toast'); t.textContent = msg; t.style.display = 'block'; t.style.background = 'var(--text)';
+    const b = document.createElement('button'); b.textContent = rotulo;
+    b.onclick = () => { t.style.display = 'none'; fn(); };
+    t.appendChild(b);
+    clearTimeout(toastTimer); toastTimer = setTimeout(() => (t.style.display = 'none'), 10000);
+  }
   const fail = (e) => { console.error(e); toast('Erro: ' + (e.message || e), true); };
 
   // Preferências de aviso: ficam no servidor (tabela preferencias) para valerem também no e-mail diário.
@@ -86,7 +93,7 @@
     // o Supabase entrega no máximo 1000 linhas por consulta: busca em páginas
     const todos = [];
     for (let de = 0; ; de += 1000) {
-      const { data, error } = await sb.from('processos').select('*, documentos(count), audiencias(id, data_hora, tipo, local, realizada)')
+      const { data, error } = await sb.from('processos').select('*, documentos(count), audiencias(id, data_hora, tipo, local, realizada)').is('excluido_em', null)
         .order('updated_at', { ascending: false }).order('id').range(de, de + 999);
       if (error) return fail(error);
       todos.push(...data);
@@ -227,15 +234,66 @@
   });
 
   $('d-edit').addEventListener('click', () => abrirFormProcesso(atual));
+  // Excluir = mover para a lixeira (30 dias para restaurar). Apagar de vez só pela lixeira.
   $('d-del').addEventListener('click', async () => {
-    if (!confirm(`Excluir o processo ${atual.numero}, todo o histórico e ${docs.length} documento(s)? Não dá para desfazer.`)) return;
-    if (docs.length) {
-      const { error } = await sb.storage.from(BUCKET).remove(docs.map((d) => d.storage_path));
-      if (error) return fail(error);
-    }
-    const { error } = await sb.from('processos').delete().eq('id', atual.id);
+    if (atual.excluido_em) return apagarDeVez(atual);
+    if (!confirm(`Mover o processo ${atual.numero} para a lixeira?\n\nEle some das listas, mas fica 30 dias na lixeira (com documentos, andamentos e audiências) e pode ser restaurado.`)) return;
+    const id = atual.id, numero = atual.numero;
+    const { error } = await sb.from('processos').update({ excluido_em: new Date().toISOString() }).eq('id', id);
     if (error) return fail(error);
-    toast('Processo excluído.'); location.hash = '#/';
+    location.hash = '#/';
+    toastAcao(`Processo ${numero} movido para a lixeira.`, 'Desfazer', () => restaurar(id));
+  });
+
+  async function restaurar(id) {
+    const { error } = await sb.from('processos').update({ excluido_em: null }).eq('id', id);
+    if (error) return fail(error);
+    toast('Processo restaurado.');
+    if (atual?.id === id) abrirProcesso(id); else { carregarLista(); if (aba === 'lixeira') carregarLixeira(); }
+  }
+
+  async function apagarDeVez(p) {
+    const { data: ds, error: e0 } = await sb.from('documentos').select('storage_path').eq('processo_id', p.id);
+    if (e0) return fail(e0);
+    if (!confirm(`Apagar DEFINITIVAMENTE o processo ${p.numero}, todo o histórico e ${ds.length} documento(s)?\n\nIsso não pode ser desfeito.`)) return;
+    if (ds.length) { const { error } = await sb.storage.from(BUCKET).remove(ds.map((d) => d.storage_path)); if (error) return fail(error); }
+    const { error } = await sb.from('processos').delete().eq('id', p.id);
+    if (error) return fail(error);
+    toast('Processo apagado definitivamente.');
+    if (atual?.id === p.id) location.hash = '#/'; else carregarLixeira();
+  }
+
+  // ---------- lixeira ----------
+  const DIAS_LIXEIRA = 30;
+  const venceEm = (iso) => new Date(Date.parse(iso) + DIAS_LIXEIRA * 864e5);
+  let lixo = [];
+  async function carregarLixeira() {
+    const { data, error } = await sb.from('processos').select('id, numero, titulo, tribunal, excluido_em, documentos(count)')
+      .not('excluido_em', 'is', null).order('excluido_em', { ascending: false });
+    if (error) return fail(error);
+    lixo = data;
+    contarLixeira(lixo.length);
+    $('lixeira-body').innerHTML = lixo.map((p) => {
+      const resta = Math.max(0, Math.ceil((venceEm(p.excluido_em) - Date.now()) / 864e5));
+      return `<tr data-id="${p.id}">
+        <td style="white-space:nowrap"><a href="#/p/${p.id}">${esc(p.numero)}</a></td>
+        <td>${esc(p.titulo || '')}${p.tribunal ? ` <span class="muted small">· ${esc(p.tribunal)}</span>` : ''}</td>
+        <td class="small">${brDateTime(p.excluido_em)}</td>
+        <td class="num">${p.documentos?.[0]?.count ?? 0}</td>
+        <td class="small ${resta <= 3 ? 'stale' : ''}">${venceEm(p.excluido_em).toLocaleDateString('pt-BR')} (${resta} dia${resta === 1 ? '' : 's'})</td>
+        <td class="actions"><button data-lact="restaurar" class="primary">Restaurar</button> <button data-lact="apagar" class="danger">Apagar de vez</button></td>
+      </tr>`;
+    }).join('') || '<tr><td colspan="6" class="muted">A lixeira está vazia.</td></tr>';
+  }
+  function contarLixeira(n) { $('lixeira-qtd').textContent = n || ''; $('lixeira-qtd').classList.toggle('hidden', !n); }
+  async function contarLixeiraServidor() {
+    const { count } = await sb.from('processos').select('id', { count: 'exact', head: true }).not('excluido_em', 'is', null);
+    contarLixeira(count);
+  }
+  $('lixeira-body').addEventListener('click', (ev) => {
+    const b = ev.target.closest('button[data-lact]'); if (!b) return;
+    const p = lixo.find((x) => x.id === b.closest('tr').dataset.id);
+    if (b.dataset.lact === 'restaurar') restaurar(p.id); else apagarDeVez(p);
   });
   $('d-copy').addEventListener('click', async () => {
     try { await navigator.clipboard.writeText(atual.numero); toast('Número copiado — cole na consulta do jus.br.'); }
@@ -263,6 +321,10 @@
 
   function renderDetalhe() {
     const p = atual;
+    const al2 = $('alert-lixeira');
+    al2.classList.toggle('hidden', !p.excluido_em);
+    al2.innerHTML = p.excluido_em ? `🗑️ Este processo está na <b>lixeira</b> desde ${brDateTime(p.excluido_em)} e será apagado definitivamente em ${venceEm(p.excluido_em).toLocaleDateString('pt-BR')}. <button data-restaurar>Restaurar</button>` : '';
+    $('d-del').textContent = p.excluido_em ? 'Apagar de vez' : 'Excluir';
     document.title = `${p.numero} — Processos`;
     $('d-numero').textContent = p.numero;
     $('d-sub').innerHTML = [p.tribunal, p.titulo].filter(Boolean).map(esc).join(' · ') + ` <span class="pill ${p.status}">${p.status}</span>`;
@@ -334,6 +396,7 @@
   }
   const semExtensao = (n) => n.replace(/\.[a-z0-9]{2,5}$/i, '');
 
+  $('alert-lixeira').addEventListener('click', (ev) => { if (ev.target.closest('[data-restaurar]')) restaurar(atual.id); });
   $('alert-proc').addEventListener('click', (ev) => { if (ev.target.closest('[data-and]')) { ev.preventDefault(); abrirAndamento(); } });
 
   // ===================== Andamentos =====================
@@ -622,9 +685,9 @@
     const b = ev.target.closest('button[data-aba]'); if (!b) return;
     aba = b.dataset.aba;
     document.querySelectorAll('#abas button').forEach((x) => x.classList.toggle('active', x === b));
-    $('aba-processos').classList.toggle('hidden', aba !== 'processos');
-    $('aba-publicacoes').classList.toggle('hidden', aba !== 'publicacoes');
+    ['processos', 'publicacoes', 'lixeira'].forEach((x) => $('aba-' + x).classList.toggle('hidden', aba !== x));
     if (aba === 'publicacoes') carregarPubs(true);
+    if (aba === 'lixeira') carregarLixeira();
   });
 
   const POR_PAGINA = 50;
@@ -719,7 +782,7 @@
   $('oab-buscar').addEventListener('click', buscarAgora);
 
   // ===================== Início =====================
-  Auth.ready.then(async ({ user: u }) => { user = u; await carregarPrefs(); route(); carregarOabsSilencioso(); contarNaoLidas(); });
+  Auth.ready.then(async ({ user: u }) => { user = u; await carregarPrefs(); route(); carregarOabsSilencioso(); contarNaoLidas(); contarLixeiraServidor(); });
   async function carregarOabsSilencioso() { const { data } = await sb.from('oabs').select('*'); oabs = data || []; }
   window.Processos = { parseCNJ };
 })();
