@@ -81,7 +81,8 @@ Controle pessoal de processos judiciais:
   (documentos, andamentos, audiências, publicações) e pode ser restaurado; depois o servidor apaga de vez,
   inclusive os arquivos. O e-mail diário avisa exclusões das últimas 24 h e o que sai da lixeira em até 3 dias;
 - **e-mail diário às 7h** (botão ✉️ Avisos): audiências próximas, publicações novas do DJEN (últimas 24 h, com
-  destaque para processos novos) e processos sem andamento; só envia quando há algo.
+  destaque para processos novos), processos sem andamento e a situação das buscas no DJEN por OAB. Chega **todo
+  dia**, mesmo sem novidade ("nenhuma publicação no DJEN"), e alerta se uma OAB ficou mais de 1 dia sem busca.
 
 Dados no Supabase (tabelas `processos`, `andamentos`, `documentos`, `audiencias`) e arquivos no bucket **privado**
 `documentos`. Regras RLS garantem que cada usuário só vê, envia e apaga o que é seu.

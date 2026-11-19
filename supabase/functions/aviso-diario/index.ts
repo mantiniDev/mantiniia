@@ -2,8 +2,9 @@
 // e lixeira (avisa exclusões; apaga de vez o que passou de 30 dias).
 //
 // Chamadas aceitas:
-//  • Agendador (pg_cron), todo dia: header "x-aviso-token" = segredo do Vault → envia para todos
-//    os usuários com e-mail diário ligado e com algo a avisar.
+//  • Agendador (pg_cron), todo dia: header "x-aviso-token" = segredo do Vault → envia
+//    todo dia a quem usa Processos (tem OAB ou processo) e está com o e-mail diário ligado,
+//    mesmo sem novidade (o e-mail confirma que as buscas no DJEN rodaram).
 //  • Usuário logado (botão "Enviar e-mail de teste"): Authorization: Bearer <token do usuário>
 //    → envia só para ele, mesmo que não haja pendências.
 //  • Corpo {"dry": true} → não envia; devolve o que seria enviado (para conferência).
@@ -71,7 +72,12 @@ async function montar(userId: string, prefs: Prefs) {
     .eq('user_id', userId).gte('excluido_em', desde).is('processos.excluido_em', null);
   if (e4) throw e4;
   const docsExcluidos = (dl ?? []).map((d) => ({ nome: d.nome, processo_id: d.processo_id, excluido_em: d.excluido_em!, numero: (d.processos as unknown as { numero: string }).numero }));
-  return { auds, parados, pubs: pubs ?? [], processosNovos, excluidos, expirando, docsExcluidos };
+  // situação das buscas no DJEN (para o e-mail mostrar que rodaram, mesmo sem publicação)
+  const { data: oabs, error: e5 } = await supabase.from('oabs').select('numero, uf, ativo, ultima_busca, ultimo_resultado')
+    .eq('user_id', userId).order('created_at');
+  if (e5) throw e5;
+  return { auds, parados, pubs: pubs ?? [], processosNovos, excluidos, expirando, docsExcluidos,
+    oabs: oabs ?? [], totalProcessos: (processos ?? []).length };
 }
 const MAX_PUBS_EMAIL = 40;
 const DIAS_LIXEIRA = 30;
@@ -109,7 +115,7 @@ type ProcResumo = { titulo?: string; created_at?: string } | null;
 function procDe(x: { processos: unknown }): ProcResumo { return x.processos as ProcResumo; }
 
 type Dados = Awaited<ReturnType<typeof montar>>;
-function html({ auds, parados, pubs, processosNovos, excluidos, expirando, docsExcluidos }: Dados, prefs: Prefs) {
+function html({ auds, parados, pubs, processosNovos, excluidos, expirando, docsExcluidos, oabs }: Dados, prefs: Prefs) {
   const link = (id: string, t: string) => `<a href="${SITE}/processos/#/p/${id}" style="color:#e63946;text-decoration:none">${esc(t)}</a>`;
   const cor = (n: number) => (n <= 1 ? '#b91c1c' : n <= 7 ? '#c2410c' : '#6b7280');
   const secAud = auds.length ? `
@@ -151,16 +157,30 @@ function html({ auds, parados, pubs, processosNovos, excluidos, expirando, docsE
       <ul style="margin:0 0 10px;padding-left:18px">${excluidos.map((p) => `<li>${link(p.id, p.numero)}${p.titulo ? ' · ' + esc(p.titulo) : ''} <span style="color:#6b7280">(apagado de vez em ${dataLixo(p.excluido_em!)})</span></li>`).join('')}</ul>` : ''}
     ${expirando.length ? `<p style="margin:0 0 6px;color:#b91c1c">Serão apagados definitivamente em até 3 dias:</p>
       <ul style="margin:0;padding-left:18px">${expirando.map((p) => `<li>${link(p.id, p.numero)}${p.titulo ? ' · ' + esc(p.titulo) : ''} <span style="color:#6b7280">(${dataLixo(p.excluido_em!)})</span></li>`).join('')}</ul>` : ''}` : '';
-  const vazio = !auds.length && !parados.length && !pubs.length && !secLixo ? '<p>Nenhuma audiência próxima, nenhum processo parado e nenhuma publicação nova. Tudo em dia! ✅</p>' : '';
+  const vazio = !auds.length && !parados.length && !secLixo ? '<p style="margin-top:16px">Nenhuma audiência próxima e nenhum processo parado. Tudo em dia! ✅</p>' : '';
+  // sem publicação: diz isso explicitamente, para o e-mail servir de confirmação de que a busca rodou
+  const semPub = !pubs.length && oabs.some((o) => o.ativo) ? `
+    <h2 style="font-size:16px;margin:24px 0 8px">📰 DJEN</h2>
+    <p style="margin:0">Nenhuma publicação nova nas últimas 24 h.</p>` : '';
+  const atrasada = (o: { ativo: boolean; ultima_busca: string | null }) => o.ativo && (!o.ultima_busca || Date.now() - Date.parse(o.ultima_busca) > 26 * 3600e3);
+  const secOab = oabs.length ? `
+    <h2 style="font-size:14px;margin:24px 0 6px;color:#6b7280">🔎 Buscas no DJEN (8h, 13h e 19h)</h2>
+    <table cellpadding="4" style="border-collapse:collapse;width:100%;font-size:13px;color:#4b5563">
+      ${oabs.map((o) => `<tr style="border-bottom:1px solid #eee">
+        <td style="white-space:nowrap">OAB ${esc(o.numero)}/${esc(o.uf)}</td>
+        <td>${!o.ativo ? 'pausada' : atrasada(o)
+          ? `<b style="color:#b91c1c">⚠️ sem busca há mais de 1 dia${o.ultima_busca ? ` (última: ${esc(dataHora(o.ultima_busca))})` : ''}</b>`
+          : `última busca ${esc(dataHora(o.ultima_busca!))} · ${esc(o.ultimo_resultado ?? '')}`}</td></tr>`).join('')}
+    </table>` : '';
   return `<div style="font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;max-width:640px;margin:auto;color:#1d2129">
     <p style="font-weight:800;font-size:18px;margin:0">mantini<span style="color:#e63946">.ia</span><span style="color:#6b7280">.br</span> · Processos</p>
-    ${secAud}${secPub}${secPar}${secLixo}${vazio}
+    ${secAud}${secPub}${semPub}${secPar}${secLixo}${vazio}${secOab}
     <p style="margin-top:28px"><a href="${SITE}/processos/" style="background:#e63946;color:#fff;padding:10px 16px;border-radius:999px;text-decoration:none">Abrir Processos</a></p>
     <p style="color:#9aa1ad;font-size:12px;margin-top:24px">Aviso diário automático. Para desligar ou mudar os prazos, use o botão ✉️ Avisos no sistema Processos.</p>
   </div>`;
 }
 
-function assunto({ auds, parados, pubs, excluidos, expirando, docsExcluidos }: Dados) {
+function assunto({ auds, parados, pubs, excluidos, expirando, docsExcluidos, oabs }: Dados) {
   const partes: string[] = [];
   const hoje = auds.filter((a) => diasAte(a.data_hora) === 0).length;
   const amanha = auds.filter((a) => diasAte(a.data_hora) === 1).length;
@@ -168,6 +188,7 @@ function assunto({ auds, parados, pubs, excluidos, expirando, docsExcluidos }: D
   if (amanha) partes.push(`${amanha} amanhã`);
   if (auds.length - hoje - amanha > 0) partes.push(`${auds.length - hoje - amanha} audiência(s) próxima(s)`);
   if (pubs.length) partes.push(`${pubs.length} publicação(ões) no DJEN`);
+  else if (oabs.some((o) => o.ativo)) partes.push('nenhuma publicação no DJEN');
   if (parados.length) partes.push(`${parados.length} processo(s) sem andamento`);
   if (excluidos.length) partes.push(`${excluidos.length} excluído(s)`);
   if (docsExcluidos.length) partes.push(`${docsExcluidos.length} documento(s) excluído(s)`);
@@ -228,8 +249,9 @@ Deno.serve(async (req) => {
     const prefs = prefsDe(u.id);
     if (!teste && !prefs.email_diario) { resultado.push({ email: u.email, enviado: false, motivo: 'e-mail diário desligado' }); continue; }
     const d = await montar(u.id, prefs);
-    const { auds, parados, pubs, excluidos, expirando, docsExcluidos } = d;
-    if (!teste && !auds.length && !parados.length && !pubs.length && !excluidos.length && !expirando.length && !docsExcluidos.length) { resultado.push({ email: u.email, enviado: false, motivo: 'nada a avisar' }); continue; }
+    const { auds, parados, pubs } = d;
+    // e-mail todo dia para quem usa o sistema (tem OAB ou processo), mesmo sem novidade; quem nunca usou não recebe
+    if (!teste && !d.oabs.length && !d.totalProcessos && !d.excluidos.length && !d.expirando.length) { resultado.push({ email: u.email, enviado: false, motivo: 'não usa Processos' }); continue; }
     const subject = (teste ? '[Teste] ' : '') + assunto(d);
     const body = html(d, prefs);
     if (dry) { resultado.push({ email: u.email, subject, audiencias: auds.length, parados: parados.length, publicacoes: pubs.length, html: body }); continue; }
