@@ -452,6 +452,7 @@
 
     $('d-pubs-card').classList.toggle('hidden', !pubsProcesso.length);
     $('d-pubs').innerHTML = pubsProcesso.map((x) => cartaoPub(x, false)).join('');
+    window.PrazosUI?.detalhe(p);
   }
   const semExtensao = (n) => n.replace(/\.[a-z0-9]{2,5}$/i, '');
 
@@ -711,6 +712,7 @@
       <div class="acoes">
         ${x.texto && x.texto.length > 220 ? '<button data-pact="abrir">Ler tudo</button>' : ''}
         ${x.link ? `<a class="btn" href="${esc(x.link)}" target="_blank" rel="noopener">Inteiro teor ↗</a>` : ''}
+        ${x.processo_id ? `<button data-pact="prazo" class="${x.prazo_status ? '' : 'primary'}">${x.prazo_status === 'definido' ? '⏳ Ver prazo' : x.prazo_status === 'sem_prazo' ? '⏳ Sem prazo — alterar' : '⏳ Definir prazo'}</button>` : ''}
         <button data-pact="lida">${x.lida ? 'Marcar como não lida' : 'Marcar como lida'}</button>
       </div>
     </div>`;
@@ -719,6 +721,7 @@
   async function acaoPub(ev) {
     const b = ev.target.closest('button[data-pact]'); if (!b) return;
     const card = b.closest('.pub'); const id = card.dataset.pub;
+    if (b.dataset.pact === 'prazo') return window.PrazosUI.daPublicacao(id);
     if (b.dataset.pact === 'abrir') { card.classList.toggle('aberta'); b.textContent = card.classList.contains('aberta') ? 'Recolher' : 'Ler tudo'; return; }
     const lida = !card.classList.contains('nova') ? false : true;
     const { error } = await sb.from('publicacoes').update({ lida }).eq('id', id);
@@ -744,8 +747,9 @@
     const b = ev.target.closest('button[data-aba]'); if (!b) return;
     aba = b.dataset.aba;
     document.querySelectorAll('#abas button').forEach((x) => x.classList.toggle('active', x === b));
-    ['processos', 'publicacoes', 'lixeira'].forEach((x) => $('aba-' + x).classList.toggle('hidden', aba !== x));
+    ['processos', 'prazos', 'publicacoes', 'lixeira'].forEach((x) => $('aba-' + x).classList.toggle('hidden', aba !== x));
     if (aba === 'publicacoes') carregarPubs(true);
+    if (aba === 'prazos') window.PrazosUI.carregarAba();
     if (aba === 'lixeira') carregarLixeira();
   });
 
@@ -841,7 +845,11 @@
   $('oab-buscar').addEventListener('click', buscarAgora);
 
   // ===================== Início =====================
-  Auth.ready.then(async ({ user: u }) => { user = u; await carregarPrefs(); route(); carregarOabsSilencioso(); contarNaoLidas(); contarLixeiraServidor(); });
+  Auth.ready.then(async ({ user: u }) => { user = u; await carregarPrefs(); route(); carregarOabsSilencioso(); contarNaoLidas(); contarLixeiraServidor(); window.PrazosUI?.contar(); });
   async function carregarOabsSilencioso() { const { data } = await sb.from('oabs').select('*'); oabs = data || []; }
   window.Processos = { parseCNJ };
+  // usado por prazos-ui.js
+  window.ProcApp = { sb, esc, toast, toastAcao, fail, textoLimpo, atual: () => atual,
+    reabrir: () => { if (atual) abrirProcesso(atual.id); },
+    recarregarPubs: () => { if (aba === 'publicacoes') carregarPubs(true); } };
 })();

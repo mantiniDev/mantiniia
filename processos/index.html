@@ -77,6 +77,8 @@
     #toast { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); background: var(--text); color: var(--bg); padding: 10px 16px; border-radius: 10px; font-size: 14px; display: none; z-index: 10; }
     .field small { color: var(--muted); }
     form .stack { display: flex; flex-direction: column; gap: 10px; }
+    #prz-lista li .when, #d-prazos li .when { min-width: 150px; }
+    #prz-pendentes .aud-list li .when { min-width: 90px; }
   </style>
 </head>
 <body>
@@ -91,10 +93,12 @@
     <section id="view-list">
       <nav class="tabs" id="abas">
         <button data-aba="processos" class="active">Processos</button>
+        <button data-aba="prazos">⏳ Prazos <span id="prazos-qtd" class="badge hidden"></span></button>
         <button data-aba="publicacoes">Publicações (DJEN) <span id="pub-nao-lidas" class="badge hidden"></span></button>
         <button data-aba="lixeira">🗑️ Lixeira <span id="lixeira-qtd" class="badge hidden"></span></button>
       </nav>
       <div id="aba-processos">
+      <div id="alert-prazos" class="notice hidden"></div>
       <div id="alert-aud" class="notice hidden"></div>
       <div id="alert-stale" class="notice hidden"></div>
       <div class="toolbar">
@@ -117,6 +121,22 @@
           <tbody id="list-body"><tr><td colspan="8" class="muted">Carregando…</td></tr></tbody>
         </table>
       </div>
+      </div>
+
+      <!-- prazos -->
+      <div id="aba-prazos" class="hidden">
+        <div class="card hidden" id="prz-pendentes"></div>
+        <div class="toolbar">
+          <label class="field">Mostrar
+            <select id="prz-filtro"><option value="abertos">Em aberto</option><option value="cumpridos">Cumpridos</option><option value="todos">Todos</option></select>
+          </label>
+          <span class="grow small muted">Para criar um prazo à mão, abra o processo e use <b>Novo prazo</b>.</span>
+          <button id="btn-feriados">📅 Feriados e suspensões</button>
+        </div>
+        <div class="card"><ul class="aud-list" id="prz-lista"></ul></div>
+        <p class="small muted">Contagem: publicação no 1º dia útil após a disponibilização no DJEN; o prazo começa no 1º dia útil seguinte (CPC art. 224);
+          dias úteis (art. 219) ou corridos; recesso de 20/12 a 20/01 (art. 220); feriados nacionais e, nos tribunais federais e superiores, os da Lei 5.010/66.
+          Feriados locais e suspensões avulsas: cadastre em <b>📅 Feriados e suspensões</b>. A sugestão automática é só um ponto de partida — confira sempre.</p>
       </div>
 
       <!-- lixeira -->
@@ -182,6 +202,7 @@
             <div><span>Documento atual</span><b id="d-docatual">—</b></div>
             <div><span>Atualizado há</span><b id="d-idade">—</b></div>
             <div><span>Próxima audiência</span><b id="d-proxaud">—</b></div>
+            <div><span>Próximo prazo</span><b id="d-proxprazo">—</b></div>
           </div>
           <button class="primary" id="d-andamento">Registrar andamento</button>
         </div>
@@ -200,6 +221,14 @@
           <span id="completo-drop-txt">Arraste aqui o PDF do processo completo ou <u>clique para escolher</u></span><br>
           <span class="small">Só é guardada a versão mais recente: ao enviar um novo, o anterior é apagado. Acima de 50 MB, o PDF é comprimido antes do envio.</span>
         </label>
+      </div>
+
+      <div class="card">
+        <div class="head" style="margin-bottom:6px">
+          <h2 style="margin:0">⏳ Prazos</h2>
+          <button class="primary" id="d-novo-prazo">Novo prazo</button>
+        </div>
+        <ul class="aud-list" id="d-prazos"></ul>
       </div>
 
       <div class="card">
@@ -307,7 +336,7 @@
       <div class="stack">
         <label class="field">Avisar audiências com antecedência de (dias)<input id="pf-aud" type="number" min="1" max="90" step="1" required></label>
         <label class="field">Destacar processos sem andamento há (dias)<input id="pf-stale" type="number" min="1" max="365" step="1" required></label>
-        <label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="pf-email"> Receber e-mail diário (7h) com audiências próximas e processos sem andamento</label>
+        <label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="pf-email"> Receber e-mail diário (7h) com prazos, audiências, publicações do DJEN e processos sem andamento</label>
         <p class="small muted" style="margin:0">O e-mail chega todo dia às 7h, para o e-mail do seu login — mesmo sem novidade, ele confirma que as buscas no DJEN rodaram.</p>
       </div>
       <div class="actions">
@@ -337,6 +366,81 @@
     </form>
   </dialog>
 
+  <!-- Prazo -->
+  <dialog id="dlg-prazo" class="largo">
+    <form method="dialog" id="form-prazo">
+      <h2 style="margin-top:0" id="pz-titulo">Novo prazo</h2>
+      <p class="small" id="pz-proc" style="margin-top:-6px"></p>
+      <details id="pz-pub" class="hidden" style="margin-bottom:10px"><summary class="small"><span id="pz-pub-cab"></span> — ler a publicação</summary>
+        <p id="pz-pub-txt" class="small" style="white-space:pre-wrap;max-height:220px;overflow:auto;border:1px solid var(--line);border-radius:8px;padding:8px;margin:6px 0 0"></p></details>
+      <div id="pz-sug" class="notice hidden"></div>
+      <div class="stack">
+        <label class="field">O que cumprir<input id="pz-desc" list="pz-tipos" required placeholder="ex.: Contestação, Apelação, Manifestação…"></label>
+        <div class="row">
+          <label class="field grow">Contar a partir de<select id="pz-base">
+            <option value="disponibilizacao">Disponibilização no DJEN</option>
+            <option value="publicacao">Publicação / intimação / ciência</option>
+            <option value="inicio">Início do prazo (1º dia já conhecido)</option></select></label>
+          <label class="field">Data<input id="pz-data" type="date" required></label>
+        </div>
+        <div class="row">
+          <label class="field" style="width:110px">Dias<input id="pz-dias" type="number" min="1" max="365" step="1" required></label>
+          <label class="field">Contagem<select id="pz-cont"><option value="uteis">Dias úteis</option><option value="corridos">Dias corridos</option></select></label>
+          <label class="field" style="width:130px">Tribunal<input id="pz-trib" placeholder="ex.: TJRJ"></label>
+          <label class="small" style="display:flex;gap:6px;align-items:center;align-self:end;padding-bottom:8px"><input type="checkbox" id="pz-dobro"> Em dobro (Fazenda, MP, Defensoria)</label>
+        </div>
+        <div id="pz-prev" class="card" style="margin:0;padding:12px 14px"></div>
+        <label class="field">Observação<input id="pz-obs" placeholder="opcional"></label>
+      </div>
+      <datalist id="pz-tipos"><option value="Contestação"><option value="Réplica"><option value="Apelação"><option value="Contrarrazões"><option value="Embargos de declaração"><option value="Agravo de instrumento"><option value="Recurso inominado"><option value="Recurso especial / extraordinário"><option value="Recurso ordinário"><option value="Manifestação"><option value="Especificação de provas"><option value="Emenda à inicial"><option value="Pagamento voluntário"><option value="Impugnação"></datalist>
+      <div class="actions">
+        <button value="sem" id="pz-sem" formnovalidate style="margin-right:auto" title="Não há prazo a cumprir nesta publicação">Sem prazo</button>
+        <button value="cancel" formnovalidate>Cancelar</button>
+        <button value="ok" class="primary">Salvar prazo</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Prazo cumprido -->
+  <dialog id="dlg-cumprido">
+    <form method="dialog" id="form-cumprido">
+      <h2 style="margin-top:0">Prazo cumprido</h2>
+      <p class="small muted" id="cp-desc"></p>
+      <div class="stack">
+        <label class="field">Data em que peticionou<input id="cp-data" type="date" required></label>
+        <label class="field">Observação<input id="cp-obs" placeholder="opcional (ex.: protocolo nº…)"></label>
+      </div>
+      <div class="actions">
+        <button value="cancel" formnovalidate>Cancelar</button>
+        <button value="ok" class="primary">Salvar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Feriados e suspensões -->
+  <dialog id="dlg-feriados" class="largo">
+    <h2 style="margin-top:0">Feriados e suspensões</h2>
+    <p class="small muted">Os nacionais, Carnaval, Sexta-feira Santa, Corpus Christi, recesso (20/12 a 20/01) e, nos tribunais federais e superiores,
+      os da Lei 5.010/66 entram automaticamente. Cadastre aqui os feriados locais (estado e comarca), portarias de suspensão e indisponibilidades do sistema.</p>
+    <div class="row">
+      <label class="field">Ano<select id="fr-ano"></select></label>
+      <label class="field">Tribunal<select id="fr-trib"></select></label>
+    </div>
+    <div class="tabela-wrap" style="max-height:300px;overflow:auto;margin:10px 0">
+      <table><thead><tr><th>Data</th><th>Motivo</th><th>Efeito</th><th>Origem</th><th></th></tr></thead><tbody id="fr-body"></tbody></table>
+    </div>
+    <form id="form-feriado" class="row" autocomplete="off">
+      <label class="field">Data<input id="fr-data" type="date" required></label>
+      <label class="field">Até (opcional)<input id="fr-ate" type="date"></label>
+      <label class="field">Tribunal<select id="fr-novo-trib"></select></label>
+      <label class="field">Efeito<select id="fr-tipo"><option value="feriado">Sem expediente</option><option value="suspensao">Prazos suspensos</option><option value="parcial">Expediente reduzido</option></select></label>
+      <label class="field grow">Motivo<input id="fr-desc" required placeholder="ex.: Aniversário da comarca, Portaria nº…"></label>
+      <label class="small" style="display:flex;gap:6px;align-items:center;align-self:end;padding-bottom:8px"><input type="checkbox" id="fr-anual"> Todo ano</label>
+      <button class="primary" type="submit">Adicionar</button>
+    </form>
+    <div class="actions"><button type="button" id="fr-fechar" class="primary">Fechar</button></div>
+  </dialog>
+
   <!-- Compressão de PDF grande -->
   <dialog id="dlg-comp">
     <h2 style="margin-top:0">Comprimindo PDF</h2>
@@ -364,6 +468,8 @@
   <script src="../assets/export.js"></script>
   <script src="../assets/agenda.js?v=20261116a"></script>
   <script src="../assets/pdf-compress.js?v=20261116a"></script>
-  <script src="app.js?v=20261118c"></script>
+  <script src="../assets/prazos.js?v=20261120a"></script>
+  <script src="app.js?v=20261120a"></script>
+  <script src="prazos-ui.js?v=20261120a"></script>
 </body>
 </html>

@@ -83,6 +83,14 @@ Controle pessoal de processos judiciais:
 - **Lixeira** (processos e documentos): "Excluir" move para a lixeira (aviso com **Desfazer**); fica 30 dias com tudo
   (documentos, andamentos, audiências, publicações) e pode ser restaurado; depois o servidor apaga de vez,
   inclusive os arquivos. O e-mail diário avisa exclusões das últimas 24 h e o que sai da lixeira em até 3 dias;
+- **Prazos processuais** (aba ⏳ Prazos e seção no processo): cada publicação do DJEN recebe uma **sugestão** de
+  prazo (tipo de ato, dias, úteis/corridos e audiência marcada no texto), que só vale depois de conferida. A contagem
+  (`assets/prazos.js`) segue o CPC: publicação no 1º dia útil após a disponibilização, início no 1º dia útil seguinte
+  (art. 224), dias úteis (art. 219) ou corridos, prorrogação de início/vencimento em dia sem expediente ou com
+  expediente reduzido, recesso de 20/12 a 20/01 (art. 220), feriados nacionais e móveis (Páscoa) e, nos tribunais
+  federais e superiores, os da Lei 5.010/66. Feriados locais e suspensões ficam na tabela `feriados` (padrão do
+  sistema + os de cada usuário). Botão **Cumprido** guarda a data do protocolo; prazos vão para a agenda (.ics) e
+  para o e-mail diário (vencidos e os dos próximos 7 dias, mais as publicações aguardando definição).
 - **e-mail diário às 7h** (botão ✉️ Avisos): audiências próximas, publicações novas do DJEN (últimas 24 h, com
   destaque para processos novos), processos sem andamento e a situação das buscas no DJEN por OAB. Chega **todo
   dia**, mesmo sem novidade ("nenhuma publicação no DJEN"), e alerta se uma OAB ficou mais de 1 dia sem busca.
