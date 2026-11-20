@@ -4,7 +4,10 @@ Produção de sistemas e conteúdos digitais — mostruário dos projetos, publi
 
 - **Projetos** (abertos ao público): [idbike](https://idbike.com.br) e [Remendo](https://remendo.com.br),
   em cartões com a imagem oficial de cada um (`assets/projetos/`).
-- **Ferramentas internas** (com login): in_clock e Processos.
+- **Ferramentas sob medida** (público): apresenta o serviço de ferramentas internas, sem mostrar os sistemas,
+  com contato por WhatsApp e e-mail.
+- **Ferramentas internas** (só aparecem com login): in_clock e Processos. Ficam num `<template id="tpl-ferramentas">`
+  em `index.html`, que só é montado na página depois do login.
 
 Tudo é **HTML + CSS + JavaScript puro**, sem build. O acesso às ferramentas exige **login (e-mail e senha)**,
 feito pelo **Supabase** (projeto `mantini-ia`), que também guarda os dados e arquivos dos sistemas que precisam de servidor.
@@ -15,7 +18,7 @@ bloco `<a class="projeto">` em `index.html`.
 ## Estrutura
 
 ```
-index.html          portal (lista de sistemas)
+index.html          página inicial (projetos, sob medida e, com login, as ferramentas internas)
 assets/base.css     visual compartilhado (cartões, botões, tabelas, modo escuro)
 assets/export.js    exportação sem bibliotecas: .xlsx, .csv e .zip
 assets/agenda.js    audiências: contador de dias, notificações e arquivo de agenda (.ics)
@@ -144,7 +147,7 @@ Usuários e controle de acesso, com a mesma segurança do admin do idbike:
 1. Crie uma pasta, ex.: `meu-sistema/index.html`.
 2. Reaproveite o visual: `<link rel="stylesheet" href="../assets/base.css">`
    (e `<script src="../assets/export.js"></script>` se precisar exportar planilha).
-3. Adicione um cartão em `index.html` apontando para `meu-sistema/`.
+3. Adicione um cartão dentro do `<template id="tpl-ferramentas">` em `index.html` apontando para `meu-sistema/`.
    **Ícone:** todo sistema usa o ícone padrão do site (círculo preto, anel vermelho, órbitas) trocando só o
    símbolo central. Copie `assets/sistemas/novo.svg` para `assets/sistemas/meu-sistema.svg`, troque o desenho
    central (branco, dentro de ~13 px do centro) e use o arquivo no cartão, no `<link rel="icon">` e na barra

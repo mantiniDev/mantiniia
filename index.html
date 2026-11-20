@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>mantini.ia.br — sistemas e conteúdos digitais</title>
-  <meta name="description" content="mantini.ia.br: produção de sistemas e conteúdos digitais. Conheça o idbike, o Remendo e outros projetos.">
+  <meta name="description" content="mantini.ia.br: produção de sistemas e conteúdos digitais. Conheça o idbike e o Remendo, e peça ferramentas internas sob medida para o seu trabalho.">
   <meta property="og:title" content="mantini.ia.br — sistemas e conteúdos digitais">
   <meta property="og:description" content="Produção de sistemas e conteúdos digitais: da ideia ao produto no ar. idbike, Remendo e mais.">
   <meta property="og:image" content="https://www.mantini.ia.br/assets/icon-512.png">
@@ -67,12 +67,25 @@
     .sys .ico { width: 52px; height: 52px; }
     .sys h3 { margin: 0; font-size: 17px; }
     .soon { opacity: .55; pointer-events: none; }
-    .sys .lock { display: none; font-size: 12px; }
-    body.anon .sys .lock { display: inline; }
     .sys.sem-acesso { opacity: .5; cursor: not-allowed; }
     .sys.sem-acesso:hover { border-color: var(--line); }
     .sys .sem { display: none; font-size: 12px; color: var(--muted); }
     .sys.sem-acesso .sem { display: block; }
+
+    /* sob medida (público) */
+    .sob-medida { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 26px; box-shadow: var(--shadow); }
+    .sob-medida > p.intro { margin: 0 0 18px; font-size: 17px; max-width: 760px; }
+    .ofertas { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; }
+    .oferta { border: 1px solid var(--line); border-radius: 12px; padding: 16px; background: var(--bg); }
+    .oferta .em { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; font-size: 20px; background: rgba(230, 57, 70, .1); margin-bottom: 8px; }
+    .oferta h3 { margin: 0 0 4px; font-size: 16px; }
+    .oferta p { margin: 0; color: var(--muted); font-size: 14px; }
+    .contato-sm { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--line); }
+    .contato-sm p { margin: 0; font-weight: 600; }
+    .contato-sm .botoes { display: flex; gap: 10px; flex-wrap: wrap; }
+    .contato-sm a { border-radius: 999px; padding: 9px 18px; font-weight: 600; border: 1px solid var(--line); color: var(--text); }
+    .contato-sm a.principal { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .contato-sm a:hover { text-decoration: none; filter: brightness(1.05); }
 
     footer.rodape { border-top: 1px solid var(--line); padding: 24px; text-align: center; color: var(--muted); font-size: 14px; }
     footer.rodape a { color: var(--text); font-weight: 600; }
@@ -91,13 +104,43 @@
         <p class="lead">Da ideia ao produto no ar: aplicativos, plataformas de dados abertos e ferramentas sob medida, com o conteúdo que faz cada um deles chegar a quem precisa.</p>
         <div class="cta">
           <a class="principal" href="#projetos">Ver projetos</a>
-          <a class="secundario" href="#ferramentas">Ferramentas internas</a>
+          <a class="secundario" id="cta-2" href="#sob-medida">Ferramentas sob medida</a>
         </div>
       </div>
     </div>
   </div>
 
   <main>
+    <div id="ferramentas-slot"></div>
+    <template id="tpl-ferramentas">
+    <!-- ===================== FERRAMENTAS INTERNAS (só com login) ===================== -->
+    <section class="bloco" id="ferramentas">
+      <div class="titulo-secao">
+        <h2>Ferramentas internas</h2>
+        <p>Sistemas liberados para a sua conta.</p>
+      </div>
+      <div id="aud-portal" class="notice hidden"></div>
+      <div class="grid">
+        <a class="card sys" href="in_clock/" data-sistema="in_clock">
+          <img class="ico" src="assets/sistemas/in_clock.svg" alt="">
+          <h3>in_clock</h3><span class="sem">Sem acesso — fale com o administrador</span>
+          <span class="muted small">Cronômetro de tarefas (categoria e quantidade), ponto com banco de horas e exportação para .xlsx/CSV.</span>
+        </a>
+        <a class="card sys" href="processos/" data-sistema="processos">
+          <img class="ico" src="assets/sistemas/processos.svg" alt="">
+          <h3>Processos</h3><span class="sem">Sem acesso — fale com o administrador</span>
+          <span class="muted small">Acompanhamento pessoal de processos: documentos do tribunal, última publicação, audiências com contador de dias e aviso diário por e-mail.</span>
+        </a>
+        <!-- Novo sistema: copie um bloco acima e aponte o href para a pasta do sistema. -->
+        <div class="card sys soon">
+          <img class="ico" src="assets/sistemas/novo.svg" alt="">
+          <h3>Próximo sistema</h3>
+          <span class="muted small">Em breve.</span>
+        </div>
+      </div>
+    </section>
+    </template>
+
     <!-- ===================== PROJETOS ===================== -->
     <section class="bloco" id="projetos">
       <div class="titulo-secao">
@@ -134,29 +177,27 @@
       </div>
     </section>
 
-    <!-- ===================== FERRAMENTAS PESSOAIS ===================== -->
-    <section class="bloco" id="ferramentas">
+
+    <!-- ===================== SOB MEDIDA (público) ===================== -->
+    <section class="bloco" id="sob-medida">
       <div class="titulo-secao">
-        <h2>Ferramentas internas</h2>
-        <p>Sistemas de uso interno. <span id="login-hint">Acesso com login.</span></p>
+        <h2>Ferramentas sob medida</h2>
+        <p>Sistemas internos para o dia a dia do seu trabalho.</p>
       </div>
-      <div id="aud-portal" class="notice hidden"></div>
-      <div class="grid">
-        <a class="card sys" href="in_clock/" data-sistema="in_clock">
-          <img class="ico" src="assets/sistemas/in_clock.svg" alt="">
-          <h3>in_clock <span class="lock">🔒</span></h3><span class="sem">Sem acesso — fale com o administrador</span>
-          <span class="muted small">Cronômetro de tarefas (categoria e quantidade), ponto com banco de horas e exportação para .xlsx/CSV.</span>
-        </a>
-        <a class="card sys" href="processos/" data-sistema="processos">
-          <img class="ico" src="assets/sistemas/processos.svg" alt="">
-          <h3>Processos <span class="lock">🔒</span></h3><span class="sem">Sem acesso — fale com o administrador</span>
-          <span class="muted small">Acompanhamento pessoal de processos: documentos do tribunal, última publicação, audiências com contador de dias e aviso diário por e-mail.</span>
-        </a>
-        <!-- Novo sistema: copie um bloco acima e aponte o href para a pasta do sistema. -->
-        <div class="card sys soon">
-          <img class="ico" src="assets/sistemas/novo.svg" alt="">
-          <h3>Próximo sistema</h3>
-          <span class="muted small">Em breve.</span>
+      <div class="sob-medida">
+        <p class="intro">Além dos projetos abertos ao público, criamos <b>ferramentas internas</b> para escritórios, empresas e profissionais: sistemas simples, feitos para a rotina de quem vai usar, no ar pelo navegador e com acesso só por login.</p>
+        <div class="ofertas">
+          <div class="oferta"><div class="em">⏱️</div><h3>Rotina e produtividade</h3><p>Controle de ponto, banco de horas, registro de tarefas e relatórios em planilha.</p></div>
+          <div class="oferta"><div class="em">📂</div><h3>Acompanhamento de casos</h3><p>Processos, documentos, prazos e compromissos organizados num lugar só.</p></div>
+          <div class="oferta"><div class="em">📬</div><h3>Avisos automáticos</h3><p>Buscas diárias em fontes oficiais e resumos por e-mail com o que mudou.</p></div>
+          <div class="oferta"><div class="em">🔐</div><h3>Acesso seguro</h3><p>Login por pessoa, controle de quem vê cada sistema e cuidado com dados pessoais (LGPD).</p></div>
+        </div>
+        <div class="contato-sm">
+          <p>Tem uma tarefa que poderia virar sistema? Conte para a gente.</p>
+          <div class="botoes">
+            <a class="principal" href="https://wa.me/5521995930261?text=Ol%C3%A1!%20Vim%20pelo%20mantini.ia.br%20e%20quero%20conversar%20sobre%20uma%20ferramenta%20sob%20medida." target="_blank" rel="noopener">WhatsApp</a>
+            <a href="mailto:pmantinidev@gmail.com?subject=Ferramenta%20sob%20medida%20(mantini.ia.br)">E-mail</a>
+          </div>
         </div>
       </div>
     </section>
@@ -173,14 +214,14 @@
   <script>
     document.getElementById('ano').textContent = new Date().getFullYear();
 
-    // Sem login: os cartões das ferramentas levam para a tela de login e depois para o sistema.
+    // Ferramentas internas: só aparecem para quem está logado (o público vê "Ferramentas sob medida").
     Auth.ready.then(({ user }) => {
-      document.body.classList.toggle('anon', !user);
-      document.getElementById('login-hint').classList.toggle('hidden', !!user);
-      if (!user) document.querySelectorAll('a.sys').forEach((a) => {
-        a.href = 'login/?next=' + encodeURIComponent(new URL(a.getAttribute('href'), location.href).pathname);
-      });
-      if (user) marcarAcessos();
+      if (!user) return;
+      const slot = document.getElementById('ferramentas-slot');
+      slot.replaceWith(document.getElementById('tpl-ferramentas').content.cloneNode(true));
+      const cta = document.getElementById('cta-2');
+      cta.href = '#ferramentas'; cta.textContent = 'Ferramentas internas';
+      marcarAcessos();
     });
 
     // Sistemas liberados para a conta (definidos no admin)
