@@ -41,6 +41,23 @@ type Oab = { id: string; user_id: string; numero: string; uf: string; ultima_bus
 
 class LimiteAtingido extends Error {}
 
+// O DJEN às vezes falha por instantes (erro 5xx ou queda de conexão): tenta de novo após 5 s e 20 s.
+const ESPERAS_RETENTATIVA = [5000, 20000];
+async function buscarComRetentativa(url: string): Promise<Response> {
+  for (let tentativa = 0; ; tentativa++) {
+    try {
+      const r = await fetch(url, { headers: { Accept: 'application/json' } });
+      if (r.status < 500 || tentativa >= ESPERAS_RETENTATIVA.length) return r;
+      await r.body?.cancel();
+      console.log(JSON.stringify({ evento: 'djen-retentativa', status: r.status, tentativa: tentativa + 1 }));
+    } catch (e) {
+      if (tentativa >= ESPERAS_RETENTATIVA.length) throw e;
+      console.log(JSON.stringify({ evento: 'djen-retentativa', erro: String((e as Error).message || e).slice(0, 120), tentativa: tentativa + 1 }));
+    }
+    await dormir(ESPERAS_RETENTATIVA[tentativa]);
+  }
+}
+
 // Busca todas as páginas de uma OAB num intervalo de datas.
 async function buscarOab(oab: Oab): Promise<Item[]> {
   const fim = new Date();
@@ -51,7 +68,7 @@ async function buscarOab(oab: Oab): Promise<Item[]> {
       numeroOab: oab.numero, ufOab: oab.uf, dataDisponibilizacaoInicio: dia(inicio), dataDisponibilizacaoFim: dia(fim),
       itensPorPagina: '100', pagina: String(pagina),
     });
-    const r = await fetch(`${API}?${q}`, { headers: { Accept: 'application/json' } });
+    const r = await buscarComRetentativa(`${API}?${q}`);
     if (r.status === 429) throw new LimiteAtingido('limite de consultas do DJEN atingido; continua na próxima busca');
     if (!r.ok) throw new Error(`DJEN respondeu ${r.status}`);
     const j = await r.json();

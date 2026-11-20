@@ -83,6 +83,8 @@ Controle pessoal de processos judiciais:
 - **e-mail diário às 7h** (botão ✉️ Avisos): audiências próximas, publicações novas do DJEN (últimas 24 h, com
   destaque para processos novos), processos sem andamento e a situação das buscas no DJEN por OAB. Chega **todo
   dia**, mesmo sem novidade ("nenhuma publicação no DJEN"), e alerta se uma OAB ficou mais de 1 dia sem busca.
+  Também lista as audiências já marcadas para depois do prazo de aviso. Se o DJEN falhar (erro 5xx), a busca
+  tenta de novo após 5 s e 20 s.
 
 Dados no Supabase (tabelas `processos`, `andamentos`, `documentos`, `audiencias`) e arquivos no bucket **privado**
 `documentos`. Regras RLS garantem que cada usuário só vê, envia e apaga o que é seu.

@@ -52,6 +52,10 @@ async function montar(userId: string, prefs: Prefs) {
   const auds = (processos ?? []).flatMap((p) => (p.audiencias ?? [])
     .filter((a) => !a.realizada && diasAte(a.data_hora) >= 0 && diasAte(a.data_hora) <= prefs.dias_aviso_audiencia)
     .map((a) => ({ ...a, p }))).sort((a, b) => a.data_hora.localeCompare(b.data_hora));
+  // audiências já marcadas para depois do prazo de aviso (para o e-mail não dizer que não há nenhuma)
+  const futuras = (processos ?? []).flatMap((p) => (p.audiencias ?? [])
+    .filter((a) => !a.realizada && diasAte(a.data_hora) > prefs.dias_aviso_audiencia)
+    .map((a) => ({ ...a, p }))).sort((a, b) => a.data_hora.localeCompare(b.data_hora));
   const parados = (processos ?? []).filter((p) => !p.ultimo_andamento_em || diasDesde(p.ultimo_andamento_em) >= prefs.dias_sem_andamento)
     .sort((a, b) => (a.ultimo_andamento_em ?? '').localeCompare(b.ultimo_andamento_em ?? ''));
   // publicações do DJEN que chegaram nas últimas 24 h (buscas das 8h, 13h e 19h)
@@ -76,7 +80,7 @@ async function montar(userId: string, prefs: Prefs) {
   const { data: oabs, error: e5 } = await supabase.from('oabs').select('numero, uf, ativo, ultima_busca, ultimo_resultado')
     .eq('user_id', userId).order('created_at');
   if (e5) throw e5;
-  return { auds, parados, pubs: pubs ?? [], processosNovos, excluidos, expirando, docsExcluidos,
+  return { auds, futuras, parados, pubs: pubs ?? [], processosNovos, excluidos, expirando, docsExcluidos,
     oabs: oabs ?? [], totalProcessos: (processos ?? []).length };
 }
 const MAX_PUBS_EMAIL = 40;
@@ -115,7 +119,7 @@ type ProcResumo = { titulo?: string; created_at?: string } | null;
 function procDe(x: { processos: unknown }): ProcResumo { return x.processos as ProcResumo; }
 
 type Dados = Awaited<ReturnType<typeof montar>>;
-function html({ auds, parados, pubs, processosNovos, excluidos, expirando, docsExcluidos, oabs }: Dados, prefs: Prefs) {
+function html({ auds, futuras, parados, pubs, processosNovos, excluidos, expirando, docsExcluidos, oabs }: Dados, prefs: Prefs) {
   const link = (id: string, t: string) => `<a href="${SITE}/processos/#/p/${id}" style="color:#e63946;text-decoration:none">${esc(t)}</a>`;
   const cor = (n: number) => (n <= 1 ? '#b91c1c' : n <= 7 ? '#c2410c' : '#6b7280');
   const secAud = auds.length ? `
@@ -126,6 +130,15 @@ function html({ auds, parados, pubs, processosNovos, excluidos, expirando, docsE
         <td style="white-space:nowrap">${esc(dataHora(a.data_hora))}</td>
         <td>${esc(a.tipo || 'Audiência')}${a.local ? ` · ${esc(a.local)}` : ''}<br>${link(a.p.id, a.p.titulo || a.p.numero)} <span style="color:#6b7280">${esc(a.p.numero)}</span></td></tr>`; }).join('')}
     </table>` : '';
+  const secFut = futuras.length ? `
+    <h2 style="font-size:16px;margin:24px 0 8px">📅 ${auds.length ? 'Outras audiências marcadas' : `Audiências marcadas (nenhuma nos próximos ${prefs.dias_aviso_audiencia} dias)`}</h2>
+    <table cellpadding="6" style="border-collapse:collapse;width:100%;font-size:14px">
+      ${futuras.slice(0, 15).map((a) => `<tr style="border-bottom:1px solid #eee">
+        <td style="white-space:nowrap;color:#6b7280">em ${diasAte(a.data_hora)} dias</td>
+        <td style="white-space:nowrap">${esc(dataHora(a.data_hora))}</td>
+        <td>${esc(a.tipo || 'Audiência')}${a.local ? ` · ${esc(a.local)}` : ''}<br>${link(a.p.id, a.p.titulo || a.p.numero)} <span style="color:#6b7280">${esc(a.p.numero)}</span></td></tr>`).join('')}
+    </table>
+    ${futuras.length > 15 ? `<p style="color:#6b7280">… e mais ${futuras.length - 15}.</p>` : ''}` : '';
   const secPar = parados.length ? `
     <h2 style="font-size:16px;margin:24px 0 8px">⏰ Processos sem andamento há ${prefs.dias_sem_andamento} dias ou mais</h2>
     <table cellpadding="6" style="border-collapse:collapse;width:100%;font-size:14px">
@@ -157,7 +170,8 @@ function html({ auds, parados, pubs, processosNovos, excluidos, expirando, docsE
       <ul style="margin:0 0 10px;padding-left:18px">${excluidos.map((p) => `<li>${link(p.id, p.numero)}${p.titulo ? ' · ' + esc(p.titulo) : ''} <span style="color:#6b7280">(apagado de vez em ${dataLixo(p.excluido_em!)})</span></li>`).join('')}</ul>` : ''}
     ${expirando.length ? `<p style="margin:0 0 6px;color:#b91c1c">Serão apagados definitivamente em até 3 dias:</p>
       <ul style="margin:0;padding-left:18px">${expirando.map((p) => `<li>${link(p.id, p.numero)}${p.titulo ? ' · ' + esc(p.titulo) : ''} <span style="color:#6b7280">(${dataLixo(p.excluido_em!)})</span></li>`).join('')}</ul>` : ''}` : '';
-  const vazio = !auds.length && !parados.length && !secLixo ? '<p style="margin-top:16px">Nenhuma audiência próxima e nenhum processo parado. Tudo em dia! ✅</p>' : '';
+  const vazio = !auds.length && !parados.length && !secLixo
+    ? `<p style="margin-top:16px">${futuras.length ? `Nenhuma audiência nos próximos ${prefs.dias_aviso_audiencia} dias` : 'Nenhuma audiência marcada'} e nenhum processo parado. Tudo em dia! ✅</p>` : '';
   // sem publicação: diz isso explicitamente, para o e-mail servir de confirmação de que a busca rodou
   const semPub = !pubs.length && oabs.some((o) => o.ativo) ? `
     <h2 style="font-size:16px;margin:24px 0 8px">📰 DJEN</h2>
@@ -174,7 +188,7 @@ function html({ auds, parados, pubs, processosNovos, excluidos, expirando, docsE
     </table>` : '';
   return `<div style="font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;max-width:640px;margin:auto;color:#1d2129">
     <p style="font-weight:800;font-size:18px;margin:0">mantini<span style="color:#e63946">.ia</span><span style="color:#6b7280">.br</span> · Processos</p>
-    ${secAud}${secPub}${semPub}${secPar}${secLixo}${vazio}${secOab}
+    ${secAud}${secPub}${semPub}${secPar}${secFut}${secLixo}${vazio}${secOab}
     <p style="margin-top:28px"><a href="${SITE}/processos/" style="background:#e63946;color:#fff;padding:10px 16px;border-radius:999px;text-decoration:none">Abrir Processos</a></p>
     <p style="color:#9aa1ad;font-size:12px;margin-top:24px">Aviso diário automático. Para desligar ou mudar os prazos, use o botão ✉️ Avisos no sistema Processos.</p>
   </div>`;
