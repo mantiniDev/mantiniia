@@ -4,7 +4,7 @@ Produção de sistemas e conteúdos digitais — mostruário dos projetos, publi
 
 - **Projetos** (abertos ao público): [idbike](https://idbike.com.br) e [Remendo](https://remendo.com.br),
   em cartões com a imagem oficial de cada um (`assets/projetos/`).
-- **Ferramentas sob medida** (público): apresenta o serviço de ferramentas internas, sem mostrar os sistemas,
+- **Ferramentas sob medida** (público): apresenta o serviço de ferramentas internas para qualquer ramo, sem exemplos,
   com contato por WhatsApp e e-mail.
 - **Ferramentas internas** (só aparecem com login): in_clock e Processos. Ficam num `<template id="tpl-ferramentas">`
   em `index.html`, que só é montado na página depois do login.
