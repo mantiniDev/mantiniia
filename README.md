@@ -23,7 +23,10 @@ assets/base.css     visual compartilhado (cartões, botões, tabelas, modo escur
 assets/export.js    exportação sem bibliotecas: .xlsx, .csv e .zip
 assets/agenda.js    audiências: contador de dias, notificações e arquivo de agenda (.ics)
 assets/icon.svg     símbolo (logo) — também icon-512.png
-assets/sistemas/    ícones dos sistemas (padrão do site + símbolo central)
+assets/sistemas/    ícones dos sistemas (emblema padrão + símbolo central)
+assets/icon.svg     emblema (favicon, topo); logo-quadrado.svg = como o original; logo.svg = emblema + nome
+assets/logo-antigo.jpg  logo original (referência); PNG: icon-512/192 (app, redes), favicon-32, emblema-512
+ferramentas/gerar_icones.py  gera todos os SVG do logo e dos sistemas; exportar_png.js gera os PNG
 assets/logo.svg     logo completo (símbolo + nome)
 assets/fonts/       Orbitron (fonte do logo, licença OFL)
 assets/config.js    endereço e chave pública do Supabase
@@ -156,10 +159,11 @@ Usuários e controle de acesso, com a mesma segurança do admin do idbike:
 2. Reaproveite o visual: `<link rel="stylesheet" href="../assets/base.css">`
    (e `<script src="../assets/export.js"></script>` se precisar exportar planilha).
 3. Adicione um cartão dentro do `<template id="tpl-ferramentas">` em `index.html` apontando para `meu-sistema/`.
-   **Ícone:** todo sistema usa o ícone padrão do site (círculo preto, anel vermelho, órbitas) trocando só o
-   símbolo central. Copie `assets/sistemas/novo.svg` para `assets/sistemas/meu-sistema.svg`, troque o desenho
-   central (branco, dentro de ~13 px do centro) e use o arquivo no cartão, no `<link rel="icon">` e na barra
-   do topo (`<span class="sys-name"><img src="../assets/sistemas/meu-sistema.svg" alt="">Nome</span>`).
+   **Ícone:** todo sistema usa o emblema padrão do site (o logo original, `assets/logo-antigo.jpg`, redesenhado
+   em vetor) trocando só o símbolo do meio. Desenhe o símbolo em `ferramentas/gerar_icones.py` (quadro 64×64,
+   branco, até ~11 px do centro), acrescente na lista do fim e rode `python3 ferramentas/gerar_icones.py`.
+   Use o arquivo gerado no cartão, no `<link rel="icon">` e na barra do topo
+   (`<span class="sys-name"><img src="../assets/sistemas/meu-sistema.svg" alt="">Nome</span>`).
 4. Use uma chave própria no localStorage (ex.: `mantini.meu-sistema.v1`).
 
 ## Rodar localmente

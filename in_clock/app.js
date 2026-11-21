@@ -250,11 +250,11 @@
 
   // Ícone da aba: o ícone do in_clock (padrão do site) com o anel na cor do ponto.
   let lastFav = null, iconeBase = null;
-  fetch('../assets/sistemas/in_clock.svg').then((r) => r.text()).then((t) => { iconeBase = t; lastFav = null; setFavicon(pontoStatus()); });
+  fetch('../assets/sistemas/in_clock.svg?v=20261121').then((r) => r.text()).then((t) => { iconeBase = t; lastFav = null; setFavicon(pontoStatus()); });
   function setFavicon(st) {
     if (st === lastFav || !iconeBase) return; lastFav = st;
     const color = { on: '#16a34a', pause: '#d97706' }[st];
-    $('favicon').href = color ? 'data:image/svg+xml,' + encodeURIComponent(iconeBase.replaceAll('#e63946', color)) : '../assets/sistemas/in_clock.svg';
+    $('favicon').href = color ? 'data:image/svg+xml,' + encodeURIComponent(iconeBase.replace(/#(f86a63|e63946)/gi, color)) : '../assets/sistemas/in_clock.svg?v=20261121';
   }
 
   function renderTasks() {
