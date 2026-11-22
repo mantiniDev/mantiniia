@@ -238,9 +238,14 @@ async function acao(body: Corpo, eu: { id: string; email: string }) {
       if (docs?.length) {
         for (let i = 0; i < docs.length; i += 100) await sb.storage.from('documentos').remove(docs.slice(i, i + 100).map((d) => d.storage_path));
       }
+      // contratos de honorários anexados (sistema Clientes)
+      const { data: anexos } = await sb.from('contratos_anexos').select('storage_path').eq('user_id', id);
+      if (anexos?.length) {
+        for (let i = 0; i < anexos.length; i += 100) await sb.storage.from('contratos').remove(anexos.slice(i, i + 100).map((d) => d.storage_path));
+      }
       const { error } = await sb.auth.admin.deleteUser(id);
       if (error) throw error;
-      await registrar(eu.email, 'excluiu usuário', u.email, { arquivos_apagados: docs?.length || 0 });
+      await registrar(eu.email, 'excluiu usuário', u.email, { arquivos_apagados: (docs?.length || 0) + (anexos?.length || 0) });
       return json({ ok: true });
     }
     default:

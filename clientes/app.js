@@ -102,7 +102,7 @@
   }
 
   // ===================== Estado =====================
-  let clientes = [], processos = [], temProcessos = false, emitente = null;
+  let clientes = [], processos = [], temProcessos = false, emitente = null, usuario = null;
   let atual = null, contratos = [], vinculos = [];
 
   async function carregarBase() {
@@ -302,12 +302,13 @@
     if (!c) { const r = await sb.from('clientes').select('*').eq('id', id).maybeSingle(); c = r.data; }
     if (!c) { toast('Cliente não encontrado.', true); location.hash = '#/clientes'; return; }
     const [ct, vp] = await Promise.all([
-      sb.from('contratos').select('*, parcelas(*)').eq('cliente_id', id).order('data_contrato', { ascending: false }),
+      sb.from('contratos').select('*, parcelas(*), contratos_anexos(*)').eq('cliente_id', id).order('data_contrato', { ascending: false }),
       temProcessos ? sb.from('clientes_processos').select('processo_id').eq('cliente_id', id) : Promise.resolve({ data: [] }),
     ]);
     if (ct.error) return fail(ct.error);
     if (seq !== seqCli) return;   // chegou uma resposta mais nova
     atual = c; contratos = ct.data; vinculos = (vp.data || []).map((v) => v.processo_id);
+    for (const k of contratos) k.contratos_anexos.sort((a, b) => a.created_at.localeCompare(b.created_at));
     for (const k of contratos) k.parcelas.sort((a, b) => a.vencimento.localeCompare(b.vencimento) || a.numero - b.numero);
     renderCliente();
   }
@@ -344,6 +345,10 @@
             <div class="meta">Contrato de ${brDate(k.data_contrato)}${k.valor_total != null ? ' · ' + moeda(k.valor_total) : ''}${k.percentual_exito != null ? ` · êxito ${String(k.percentual_exito).replace('.', ',')}%` : ''}${k.processo_id ? ` · processo <a href="../processos/#/p/${k.processo_id}">${esc(procTxt(k.processo_id) || 'abrir')}</a>` : ''}${k.observacoes ? ' · ' + esc(k.observacoes) : ''}</div></div>
           <div class="row"><button class="mini" data-cact="parcela">+ Parcela</button><button class="mini" data-cact="editar">Editar</button><button class="mini danger" data-cact="del">×</button></div>
         </div>
+        <div class="anexos">📎 ${k.contratos_anexos.map((a) => `<span class="anexo" data-anexo="${a.id}"><a href="#" data-aact="ver" title="Abrir">${esc(a.nome)}</a> <small class="muted">${fmtTam(a.tamanho)}</small>
+            <button class="mini" data-aact="baixar" title="Baixar">⬇</button><button class="mini danger" data-aact="del" title="Apagar o arquivo">×</button></span>`).join('')
+          || '<span class="muted small">Nenhum arquivo — anexe o contrato assinado (ou arraste o arquivo para cá).</span>'}
+          <label class="btn mini">Anexar<input type="file" multiple hidden data-anexar accept=".pdf,.doc,.docx,.odt,.jpg,.jpeg,.png,.heic,.webp"></label></div>
         ${n ? `<div class="tabela-wrap"><table><tbody>${linhas}</tbody></table></div>` : `<p class="small muted" style="margin:8px 0 0">${k.tipo === 'exito' ? 'Quando o êxito for recebido, use “+ Parcela” para lançar o valor.' : 'Nenhuma parcela.'}</p>`}
       </div>`;
     }).join('') || '<p class="vazio">Nenhum contrato ainda. Clique em <b>Novo contrato</b>.</p>';
@@ -354,6 +359,13 @@
       || (temProcessos ? '<li class="muted" style="list-style:none;margin-left:-18px">Nenhum processo vinculado.</li>' : '');
   }
   $('c-contratos').addEventListener('click', async (ev) => {
+    const ax = ev.target.closest('[data-aact]');
+    if (ax) {
+      ev.preventDefault();
+      const k = contratos.find((x) => x.id === ax.closest('[data-contrato]').dataset.contrato);
+      const a = k.contratos_anexos.find((x) => x.id === ax.closest('[data-anexo]').dataset.anexo);
+      return acaoAnexo(ax.dataset.aact, a);
+    }
     if (ev.target.closest('button[data-pact]')) return acaoParcela(ev, () => contratos.flatMap((k) => k.parcelas.map((p) => ({ ...p, contratos: { descricao: k.descricao, clientes: atual } }))));
     const b = ev.target.closest('button[data-cact]'); if (!b) return;
     const k = contratos.find((x) => x.id === b.closest('[data-contrato]').dataset.contrato);
@@ -362,6 +374,8 @@
     if (b.dataset.cact === 'del') {
       const pagas = k.parcelas.filter((p) => p.pago_em).length;
       if (!confirm(`Apagar o contrato "${k.descricao}" e as ${k.parcelas.length} parcela(s)?${pagas ? `\n\nAtenção: ${pagas} já foram recebidas e o histórico desses recebimentos será perdido.` : ''}`)) return;
+      if (k.contratos_anexos.length && !confirm(`Os ${k.contratos_anexos.length} arquivo(s) anexado(s) a este contrato também serão apagados. Continuar?`)) return;
+      await apagarArquivos(k.contratos_anexos);
       const { error } = await sb.from('contratos').delete().eq('id', k.id);
       if (error) return fail(error);
       abrirCliente(atual.id);
@@ -427,6 +441,7 @@
   $('c-del').addEventListener('click', async () => {
     const n = contratos.reduce((t, k) => t + k.parcelas.length, 0);
     if (!confirm(`Excluir ${atual.nome}${contratos.length ? `, com ${contratos.length} contrato(s) e ${n} parcela(s)` : ''}?\n\nIsso não pode ser desfeito. Para só tirar da lista, edite e desmarque "Cliente ativo".`)) return;
+    await apagarArquivos(contratos.flatMap((k) => k.contratos_anexos));
     const { error } = await sb.from('clientes').delete().eq('id', atual.id);
     if (error) return fail(error);
     await carregarBase(); toast('Cliente excluído.'); location.hash = '#/clientes';
@@ -443,6 +458,7 @@
     $('ct-valor').value = valorTxt(k?.valor_total); $('ct-perc').value = k?.percentual_exito != null ? String(k.percentual_exito).replace('.', ',') : '';
     $('ct-mensal').value = ''; $('ct-n').value = 1; $('ct-venc').value = hoje(); $('ct-obs').value = k?.observacoes || '';
     $('ct-gerar').classList.toggle('hidden', !!k);
+    $('ct-arquivo').value = ''; $('ct-arquivo-wrap').classList.toggle('hidden', !!k);
     $('ct-status-wrap').classList.toggle('hidden', !k); $('ct-encerrado').checked = k?.status === 'encerrado';
     ajustarContrato(); $('dlg-contrato').showModal(); $('ct-desc').focus();
   }
@@ -494,7 +510,9 @@
       if (e2) return fail(e2);
     }
     if (proc && !vinculos.includes(proc.id)) await sb.from('clientes_processos').insert({ cliente_id: atual.id, processo_id: proc.id });
-    $('dlg-contrato').close(); toast(plano.length ? `Contrato salvo com ${plano.length} parcela(s).` : 'Contrato salvo.');
+    const arqs = [...$('ct-arquivo').files];
+    $('dlg-contrato').close();
+    if (arqs.length) await anexar(data.id, arqs); toast(plano.length ? `Contrato salvo com ${plano.length} parcela(s).` : 'Contrato salvo.');
     abrirCliente(atual.id);
   });
 
@@ -543,6 +561,58 @@
     }
     if ($('rc-recibo').checked) await gerarRecibo(rcParc.id);
     atualizar();
+  });
+
+  // ===================== Anexos dos contratos =====================
+  const BUCKET = 'contratos', LIMITE = 50 * 1024 * 1024;
+  const fmtTam = (b) => (b == null ? '' : b < 1024 * 1024 ? `${Math.max(1, Math.round(b / 1024))} KB` : `${(b / 1048576).toFixed(1).replace('.', ',')} MB`);
+  const nomeSeguro = (n) => n.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^\w.\-]+/g, '_').replace(/_+/g, '_').slice(-120);
+  async function anexar(contratoId, arquivos) {
+    let ok = 0;
+    for (const f of arquivos) {
+      if (f.size > LIMITE) { toast(`"${f.name}" tem ${fmtTam(f.size)}; o limite é 50 MB. Reduza o arquivo (ex.: PDF em qualidade menor) e tente de novo.`, true); continue; }
+      const path = `${usuario.id}/${contratoId}/${crypto.randomUUID()}-${nomeSeguro(f.name)}`;
+      toast(`Enviando ${f.name}…`);
+      const up = await sb.storage.from(BUCKET).upload(path, f, { contentType: f.type || 'application/octet-stream', upsert: false });
+      if (up.error) { fail(up.error); continue; }
+      const { error } = await sb.from('contratos_anexos').insert({ contrato_id: contratoId, nome: f.name, storage_path: path, tamanho: f.size, tipo: f.type || null });
+      if (error) { await sb.storage.from(BUCKET).remove([path]); fail(error); continue; }
+      ok++;
+    }
+    if (ok) toast(`${ok} arquivo(s) anexado(s).`);
+    if (atual) abrirCliente(atual.id);
+  }
+  async function apagarArquivos(lista) {
+    if (!lista.length) return;
+    const { error } = await sb.storage.from(BUCKET).remove(lista.map((a) => a.storage_path));
+    if (error) console.error('arquivos não apagados', error);
+  }
+  async function acaoAnexo(acao, a) {
+    if (acao === 'del') {
+      if (!confirm(`Apagar o arquivo "${a.nome}"?`)) return;
+      const { error } = await sb.storage.from(BUCKET).remove([a.storage_path]);
+      if (error) return fail(error);
+      const { error: e2 } = await sb.from('contratos_anexos').delete().eq('id', a.id);
+      if (e2) return fail(e2);
+      toast('Arquivo apagado.'); return abrirCliente(atual.id);
+    }
+    // link temporário (5 min): o arquivo nunca fica público
+    const janela = acao === 'ver' ? window.open('', '_blank') : null;
+    const { data, error } = await sb.storage.from(BUCKET).createSignedUrl(a.storage_path, 300, acao === 'baixar' ? { download: a.nome } : undefined);
+    if (error) { janela?.close(); return fail(error); }
+    if (janela) janela.location = data.signedUrl; else location.href = data.signedUrl;
+  }
+  // botão "Anexar" e arrastar arquivo para o cartão do contrato
+  $('c-contratos').addEventListener('change', (ev) => {
+    const inp = ev.target.closest('input[data-anexar]'); if (!inp || !inp.files.length) return;
+    anexar(inp.closest('[data-contrato]').dataset.contrato, [...inp.files]);
+  });
+  $('c-contratos').addEventListener('dragover', (ev) => { const c = ev.target.closest('.contrato'); if (!c) return; ev.preventDefault(); c.classList.add('soltar'); });
+  $('c-contratos').addEventListener('dragleave', (ev) => { ev.target.closest('.contrato')?.classList.remove('soltar'); });
+  $('c-contratos').addEventListener('drop', (ev) => {
+    const c = ev.target.closest('.contrato'); if (!c) return;
+    ev.preventDefault(); c.classList.remove('soltar');
+    if (ev.dataTransfer.files.length) anexar(c.dataset.contrato, [...ev.dataTransfer.files]);
   });
 
   // ===================== Recibo em PDF =====================
@@ -649,5 +719,5 @@
   });
 
   // ===================== Início =====================
-  Auth.ready.then(async () => { await carregarBase(); route(); });
+  Auth.ready.then(async ({ user }) => { usuario = user; await carregarBase(); route(); });
 })();

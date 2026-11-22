@@ -110,6 +110,10 @@ Dados no Supabase (tabelas `processos`, `andamentos`, `documentos`, `audiencias`
   endereço e observações; vínculo com os processos do sistema Processos (para quem tem acesso aos dois).
 - **Contratos de honorários:** valor fixo (à vista ou parcelado), mensal, êxito (%) ou fixo + êxito. As parcelas
   são geradas na hora (o centavo que sobra vai na última; dia 31 vira o último dia dos meses mais curtos).
+- **Anexos do contrato:** contrato assinado, aditivos etc. (PDF, Word ou foto, até 50 MB cada), no cadastro do
+  contrato, pelo botão "Anexar" ou arrastando o arquivo para o cartão. Bucket **privado** `contratos`
+  (`<user_id>/<contrato_id>/<arquivo>`), aberto só por link temporário de 5 minutos; apagar o contrato, o cliente ou a
+  conta (admin) apaga os arquivos.
 - **Recebimento:** data, valor, forma (PIX, transferência…). Recebeu menos? Oferece lançar o saldo como nova parcela.
 - **Recibo em PDF** (pdf-lib, gerado no navegador): número sequencial por usuário, valor por extenso, CPF/CNPJ do
   cliente, contrato, parcela, processo, cidade/data e assinatura. Dados do emitente em ⚙️ Dados do recibo.
@@ -117,7 +121,7 @@ Dados no Supabase (tabelas `processos`, `andamentos`, `documentos`, `audiencias`
 - **Painel:** vencidas, a receber no mês, recebido no mês e no ano; aba Parcelas com filtros e exportação .xlsx.
 - E-mail diário das 7h: seção "💰 Honorários a receber" (vencidas e próximos 7 dias).
 
-Tabelas `clientes`, `clientes_processos`, `contratos`, `parcelas` e `emitente`, com RLS (dono + acesso ao sistema
+Tabelas `clientes`, `clientes_processos`, `contratos`, `contratos_anexos`, `parcelas` e `emitente`, com RLS (dono + acesso ao sistema
 "clientes"); gatilho confere que vínculos, contratos e parcelas apontam para registros do mesmo usuário.
 
 ## E-mail diário

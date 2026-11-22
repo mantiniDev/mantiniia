@@ -33,6 +33,11 @@
     .ficha div span { display: block; font-size: 12px; color: var(--muted); }
     .contrato { border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; margin-bottom: 14px; }
     .contrato.encerrado { opacity: .65; }
+    .contrato.soltar { border-color: var(--accent); background: var(--accent-soft); }
+    .anexos { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; margin-top: 8px; font-size: 14px; }
+    .anexo { display: inline-flex; gap: 4px; align-items: center; border: 1px solid var(--line); border-radius: 999px; padding: 2px 4px 2px 10px; }
+    .anexo a { overflow-wrap: anywhere; }
+    label.btn.mini { cursor: pointer; }
     .contrato h3 { margin: 0; font-size: 16px; }
     .contrato .meta { color: var(--muted); font-size: 13px; }
     .contrato table { margin-top: 10px; }
@@ -210,6 +215,7 @@
           <div class="prev" id="ct-prev" style="margin-top:8px"></div>
         </fieldset>
         <label class="field">Observações<input id="ct-obs" placeholder="opcional (ex.: cláusulas, reajuste)"></label>
+        <label class="field" id="ct-arquivo-wrap">Anexar o contrato (opcional)<input id="ct-arquivo" type="file" multiple accept=".pdf,.doc,.docx,.odt,.jpg,.jpeg,.png,.heic,.webp"><small>PDF, Word ou foto, até 50 MB cada. Dá para anexar depois também.</small></label>
         <label class="small hidden" id="ct-status-wrap" style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="ct-encerrado"> Contrato encerrado</label>
       </div>
       <div class="actions"><button value="cancel" formnovalidate>Cancelar</button><button value="ok" class="primary">Salvar</button></div>
@@ -278,6 +284,6 @@
   <script src="../assets/config.js"></script>
   <script src="../assets/auth.js?v=20261115a" data-root="../" data-protect data-sistema="clientes"></script>
   <script src="../assets/export.js"></script>
-  <script src="app.js?v=20261121a"></script>
+  <script src="app.js?v=20261122a"></script>
 </body>
 </html>
