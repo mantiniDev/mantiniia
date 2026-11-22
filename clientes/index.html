@@ -1,0 +1,283 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Clientes — mantini.ia.br</title>
+  <link rel="stylesheet" href="../assets/base.css?v=20261116a">
+  <link rel="icon" href="../assets/sistemas/clientes.svg?v=20261121">
+  <style>
+    .toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; margin-bottom: 14px; }
+    .toolbar .grow { flex: 1; min-width: 200px; }
+    tbody tr.click { cursor: pointer; }
+    td.actions { white-space: nowrap; text-align: right; }
+    td.actions button, .mini { padding: 3px 10px; font-size: 12px; }
+    .tabela-wrap { overflow-x: auto; }
+    table td { overflow-wrap: anywhere; }
+    td.num, th.num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+    .pill { display: inline-block; padding: 1px 9px; border-radius: 999px; font-size: 12px; background: var(--line); color: var(--muted); white-space: nowrap; }
+    .pill.pago { background: #dcfce7; color: #166534; }
+    .pill.vencido { background: #fee2e2; color: #b91c1c; font-weight: 600; }
+    .pill.hoje { background: #fee2e2; color: #b91c1c; }
+    .pill.breve { background: #fef3c7; color: #92400e; }
+    @media (prefers-color-scheme: dark) { .pill.pago { background: #14351f; color: #86efac; } .pill.vencido, .pill.hoje { background: #4c1d1d; color: #fca5a5; } .pill.breve { background: #42300f; color: #fcd34d; } }
+    .head { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; }
+    .head h1 { margin: 0; font-size: 22px; }
+    .resumo { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; margin-bottom: 16px; }
+    .resumo .card { margin: 0; }
+    .resumo span { display: block; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .03em; }
+    .resumo b { font-size: 24px; font-variant-numeric: tabular-nums; }
+    .resumo small { color: var(--muted); }
+    .resumo .alerta b { color: var(--danger); }
+    .ficha { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px 24px; margin-top: 12px; }
+    .ficha div span { display: block; font-size: 12px; color: var(--muted); }
+    .contrato { border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; margin-bottom: 14px; }
+    .contrato.encerrado { opacity: .65; }
+    .contrato h3 { margin: 0; font-size: 16px; }
+    .contrato .meta { color: var(--muted); font-size: 13px; }
+    .contrato table { margin-top: 10px; }
+    .prev { font-size: 13px; color: var(--muted); border: 1px dashed var(--line); border-radius: 8px; padding: 8px 10px; }
+    form .stack { display: flex; flex-direction: column; gap: 10px; }
+    .field small { color: var(--muted); }
+    .vazio { color: var(--muted); padding: 10px 0; }
+    #toast { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); background: var(--text); color: var(--bg); padding: 10px 16px; border-radius: 10px; font-size: 14px; display: none; z-index: 10; }
+    #toast button { margin-left: 12px; padding: 3px 12px; font-size: 13px; border-color: transparent; }
+    dialog.largo { width: min(760px, 96vw); }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="../"><img src="../assets/icon.svg?v=20261121" width="28" height="28" alt=""><span>mantini<span class="ia">.ia</span><span class="tld">.br</span></span></a><span class="sep">/</span><a href="#/" class="sys-name"><img src="../assets/sistemas/clientes.svg?v=20261121" width="28" height="28" alt="">Clientes</a>
+    <span class="spacer"></span>
+    <span id="user-slot"></span>
+  </header>
+
+  <main>
+    <!-- ============ PRINCIPAL ============ -->
+    <section id="view-main">
+      <nav class="tabs" id="abas">
+        <button data-aba="painel" class="active">Painel</button>
+        <button data-aba="clientes">Clientes</button>
+        <button data-aba="parcelas">Parcelas <span id="venc-qtd" class="badge hidden"></span></button>
+        <span class="spacer" style="flex:1"></span>
+        <button id="btn-emitente" title="Dados que saem no recibo">⚙️ Dados do recibo</button>
+      </nav>
+
+      <!-- painel -->
+      <div id="aba-painel">
+        <div class="resumo">
+          <div class="card alerta"><span>Vencidas</span><b id="r-vencidas">—</b><small id="r-vencidas-q"></small></div>
+          <div class="card"><span>A receber este mês</span><b id="r-mes">—</b><small id="r-mes-q"></small></div>
+          <div class="card"><span>Recebido este mês</span><b id="r-recebido-mes">—</b><small id="r-recebido-mes-q"></small></div>
+          <div class="card"><span>Recebido no ano</span><b id="r-recebido-ano">—</b><small id="r-recebido-ano-q"></small></div>
+        </div>
+        <div class="card">
+          <div class="head" style="margin-bottom:6px"><h2 style="margin:0">Vencidas e próximos 30 dias</h2><button class="primary" id="btn-novo-cliente2">Novo cliente</button></div>
+          <div class="tabela-wrap"><table>
+            <thead><tr><th>Vencimento</th><th>Cliente</th><th>Contrato</th><th class="num">Valor</th><th></th><th></th></tr></thead>
+            <tbody id="painel-body"></tbody>
+          </table></div>
+        </div>
+      </div>
+
+      <!-- clientes -->
+      <div id="aba-clientes" class="hidden">
+        <div class="toolbar">
+          <label class="field grow">Buscar<input id="q" placeholder="nome, CPF/CNPJ, e-mail, telefone…"></label>
+          <label class="small" style="display:flex;gap:6px;align-items:center;padding-bottom:8px"><input type="checkbox" id="f-inativos"> Mostrar inativos</label>
+          <button id="btn-export-clientes">Exportar .xlsx</button>
+          <button class="primary" id="btn-novo-cliente">Novo cliente</button>
+        </div>
+        <div class="card tabela-wrap">
+          <table>
+            <thead><tr><th>Nome</th><th>CPF/CNPJ</th><th>Contato</th><th class="num">Processos</th><th class="num">A receber</th><th class="num">Vencido</th></tr></thead>
+            <tbody id="clientes-body"><tr><td colspan="6" class="muted">Carregando…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- parcelas -->
+      <div id="aba-parcelas" class="hidden">
+        <div class="toolbar">
+          <label class="field">Mostrar
+            <select id="f-parc"><option value="abertas">A receber</option><option value="vencidas">Vencidas</option><option value="recebidas">Recebidas</option></select>
+          </label>
+          <label class="field" id="f-mes-wrap">Mês<input type="month" id="f-mes"></label>
+          <span class="grow"></span>
+          <span class="small muted" id="parc-total"></span>
+          <button id="btn-export-parcelas">Exportar .xlsx</button>
+        </div>
+        <div class="card tabela-wrap">
+          <table>
+            <thead><tr><th>Vencimento</th><th>Cliente</th><th>Contrato / parcela</th><th class="num">Valor</th><th>Situação</th><th></th></tr></thead>
+            <tbody id="parc-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ CLIENTE ============ -->
+    <section id="view-cliente" class="hidden">
+      <p><a href="#/clientes">← Todos os clientes</a></p>
+      <div class="card">
+        <div class="head">
+          <div><h1 id="c-nome"></h1><div class="muted" id="c-sub"></div></div>
+          <div class="row">
+            <a class="btn hidden" id="c-whats" target="_blank" rel="noopener">WhatsApp</a>
+            <a class="btn hidden" id="c-mail">E-mail</a>
+            <button id="c-edit">Editar</button>
+            <button class="danger" id="c-del">Excluir</button>
+          </div>
+        </div>
+        <div class="ficha" id="c-ficha"></div>
+      </div>
+
+      <div class="resumo">
+        <div class="card"><span>Contratado</span><b id="c-contratado">—</b></div>
+        <div class="card"><span>Recebido</span><b id="c-recebido">—</b></div>
+        <div class="card"><span>A receber</span><b id="c-areceber">—</b></div>
+        <div class="card alerta"><span>Vencido</span><b id="c-vencido">—</b></div>
+      </div>
+
+      <div class="card">
+        <div class="head" style="margin-bottom:8px"><h2 style="margin:0">Contratos de honorários</h2><button class="primary" id="c-novo-contrato">Novo contrato</button></div>
+        <div id="c-contratos"></div>
+      </div>
+
+      <div class="card" id="c-proc-card">
+        <div class="head" style="margin-bottom:8px">
+          <h2 style="margin:0">Processos</h2>
+          <form id="form-vinc" class="row" autocomplete="off">
+            <input id="vinc-proc" list="lista-processos" placeholder="número ou partes do processo…" style="min-width:260px">
+            <button type="submit">Vincular</button>
+          </form>
+        </div>
+        <ul id="c-processos" style="margin:0;padding-left:18px"></ul>
+        <p class="small muted hidden" id="c-proc-sem">Para vincular processos, peça acesso ao sistema Processos.</p>
+      </div>
+    </section>
+  </main>
+  <datalist id="lista-processos"></datalist>
+
+  <!-- Cliente -->
+  <dialog id="dlg-cliente">
+    <form method="dialog" id="form-cliente">
+      <h2 style="margin-top:0" id="cli-titulo">Novo cliente</h2>
+      <div class="stack">
+        <div class="row">
+          <label class="field grow">Nome<input id="cli-nome" required></label>
+          <label class="field" style="width:110px">Tipo<select id="cli-tipo"><option value="PF">Pessoa física</option><option value="PJ">Pessoa jurídica</option></select></label>
+        </div>
+        <label class="field">CPF / CNPJ<input id="cli-doc" inputmode="numeric" placeholder="só números ou com pontuação"><small id="cli-doc-hint"></small></label>
+        <div class="row">
+          <label class="field grow">E-mail<input id="cli-email" type="email"></label>
+          <label class="field grow">Telefone / WhatsApp<input id="cli-tel" inputmode="tel" placeholder="(21) 99999-9999"></label>
+        </div>
+        <label class="field">Endereço<input id="cli-end"></label>
+        <label class="field">Observações<textarea id="cli-obs" rows="2" style="font:inherit;border:1px solid var(--line);border-radius:8px;padding:8px;background:var(--bg);color:var(--text)"></textarea></label>
+        <label class="small" style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="cli-ativo" checked> Cliente ativo</label>
+      </div>
+      <div class="actions"><button value="cancel" formnovalidate>Cancelar</button><button value="ok" class="primary">Salvar</button></div>
+    </form>
+  </dialog>
+
+  <!-- Contrato -->
+  <dialog id="dlg-contrato" class="largo">
+    <form method="dialog" id="form-contrato">
+      <h2 style="margin-top:0" id="ct-titulo">Novo contrato</h2>
+      <div class="stack">
+        <label class="field">Descrição<input id="ct-desc" required placeholder="ex.: Ação trabalhista contra Empresa X; Consultoria mensal"></label>
+        <div class="row">
+          <label class="field">Tipo<select id="ct-tipo">
+            <option value="fixo">Valor fixo (à vista ou parcelado)</option>
+            <option value="mensal">Mensal (valor por mês)</option>
+            <option value="exito">Êxito (% do resultado)</option>
+            <option value="misto">Fixo + êxito</option></select></label>
+          <label class="field">Data do contrato<input id="ct-data" type="date" required></label>
+          <label class="field grow" id="ct-proc-wrap">Processo (opcional)<input id="ct-proc" list="lista-processos" placeholder="número ou partes"></label>
+        </div>
+        <div class="row">
+          <label class="field" id="ct-valor-wrap">Valor total (R$)<input id="ct-valor" inputmode="decimal" placeholder="0,00"></label>
+          <label class="field" id="ct-mensal-wrap">Valor por mês (R$)<input id="ct-mensal" inputmode="decimal" placeholder="0,00"></label>
+          <label class="field" id="ct-perc-wrap">Êxito (%)<input id="ct-perc" inputmode="decimal" placeholder="ex.: 30"></label>
+        </div>
+        <fieldset id="ct-gerar" style="border:1px solid var(--line);border-radius:10px;padding:10px 12px">
+          <legend class="small">Parcelas</legend>
+          <div class="row">
+            <label class="field" style="width:120px"><span id="ct-n-rot">Nº de parcelas</span><input id="ct-n" type="number" min="1" max="120" value="1"></label>
+            <label class="field">1º vencimento<input id="ct-venc" type="date"></label>
+          </div>
+          <div class="prev" id="ct-prev" style="margin-top:8px"></div>
+        </fieldset>
+        <label class="field">Observações<input id="ct-obs" placeholder="opcional (ex.: cláusulas, reajuste)"></label>
+        <label class="small hidden" id="ct-status-wrap" style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="ct-encerrado"> Contrato encerrado</label>
+      </div>
+      <div class="actions"><button value="cancel" formnovalidate>Cancelar</button><button value="ok" class="primary">Salvar</button></div>
+    </form>
+  </dialog>
+
+  <!-- Parcela -->
+  <dialog id="dlg-parcela">
+    <form method="dialog" id="form-parcela">
+      <h2 style="margin-top:0" id="pa-titulo">Nova parcela</h2>
+      <div class="stack">
+        <label class="field">Descrição<input id="pa-desc" placeholder="opcional (ex.: êxito — acordo homologado)"></label>
+        <div class="row">
+          <label class="field">Vencimento<input id="pa-venc" type="date" required></label>
+          <label class="field">Valor (R$)<input id="pa-valor" inputmode="decimal" required placeholder="0,00"></label>
+        </div>
+      </div>
+      <div class="actions"><button value="cancel" formnovalidate>Cancelar</button><button value="ok" class="primary">Salvar</button></div>
+    </form>
+  </dialog>
+
+  <!-- Recebimento -->
+  <dialog id="dlg-receber">
+    <form method="dialog" id="form-receber">
+      <h2 style="margin-top:0">Registrar recebimento</h2>
+      <p class="small muted" id="rc-desc"></p>
+      <div class="stack">
+        <div class="row">
+          <label class="field">Data do pagamento<input id="rc-data" type="date" required></label>
+          <label class="field">Valor recebido (R$)<input id="rc-valor" inputmode="decimal" required></label>
+          <label class="field">Forma<select id="rc-forma">
+            <option value="pix">PIX</option><option value="transferencia">Transferência</option><option value="dinheiro">Dinheiro</option>
+            <option value="cartao">Cartão</option><option value="boleto">Boleto</option><option value="cheque">Cheque</option><option value="outro">Outro</option></select></label>
+        </div>
+        <label class="field">Observação<input id="rc-obs" placeholder="opcional"></label>
+        <label class="small" style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="rc-recibo" checked> Gerar o recibo em PDF agora</label>
+      </div>
+      <div class="actions"><button value="cancel" formnovalidate>Cancelar</button><button value="ok" class="primary">Salvar</button></div>
+    </form>
+  </dialog>
+
+  <!-- Emitente do recibo -->
+  <dialog id="dlg-emitente">
+    <form method="dialog" id="form-emitente">
+      <h2 style="margin-top:0">Dados do recibo</h2>
+      <p class="small muted">Aparecem no recibo em PDF, como quem recebeu o pagamento.</p>
+      <div class="stack">
+        <label class="field">Nome<input id="em-nome" required placeholder="nome completo ou do escritório"></label>
+        <div class="row">
+          <label class="field grow">CPF / CNPJ<input id="em-doc" inputmode="numeric"></label>
+          <label class="field grow">OAB<input id="em-oab" placeholder="ex.: OAB/RJ 123.456"></label>
+        </div>
+        <label class="field">Endereço<input id="em-end"></label>
+        <div class="row">
+          <label class="field grow">Cidade (para a data do recibo)<input id="em-cidade" placeholder="ex.: Rio de Janeiro"></label>
+          <label class="field grow">Chave PIX (vai na mensagem de cobrança)<input id="em-pix"></label>
+        </div>
+      </div>
+      <div class="actions"><button value="cancel" formnovalidate>Cancelar</button><button value="ok" class="primary">Salvar</button></div>
+    </form>
+  </dialog>
+
+  <div id="toast" role="status"></div>
+
+  <script src="../assets/vendor/supabase-2.119.0.js"></script>
+  <script src="../assets/config.js"></script>
+  <script src="../assets/auth.js?v=20261115a" data-root="../" data-protect data-sistema="clientes"></script>
+  <script src="../assets/export.js"></script>
+  <script src="app.js?v=20261121a"></script>
+</body>
+</html>

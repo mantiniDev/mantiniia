@@ -6,7 +6,7 @@ Produção de sistemas e conteúdos digitais — mostruário dos projetos, publi
   em cartões com a imagem oficial de cada um (`assets/projetos/`).
 - **Ferramentas sob medida** (público): apresenta o serviço de ferramentas internas para qualquer ramo, sem exemplos,
   com contato por WhatsApp e e-mail.
-- **Ferramentas internas** (só aparecem com login): in_clock e Processos. Ficam num `<template id="tpl-ferramentas">`
+- **Ferramentas internas** (só aparecem com login): in_clock, Processos e Clientes. Ficam num `<template id="tpl-ferramentas">`
   em `index.html`, que só é montado na página depois do login.
 
 Tudo é **HTML + CSS + JavaScript puro**, sem build. O acesso às ferramentas exige **login (e-mail e senha)**,
@@ -24,6 +24,7 @@ assets/export.js    exportação sem bibliotecas: .xlsx, .csv e .zip
 assets/agenda.js    audiências: contador de dias, notificações e arquivo de agenda (.ics)
 assets/icon.svg     símbolo (logo) — também icon-512.png
 assets/sistemas/    ícones dos sistemas (emblema padrão + símbolo central)
+clientes/           sistema Clientes (clientes, contratos de honorários, parcelas, recibo em PDF)
 assets/icon.svg     emblema (favicon, topo); logo-quadrado.svg = como o original; logo.svg = emblema + nome
 assets/logo-antigo.jpg  logo original (referência); PNG: icon-512/192 (app, redes), favicon-32, emblema-512
 ferramentas/gerar_icones.py  gera todos os SVG do logo e dos sistemas; exportar_png.js gera os PNG
@@ -102,6 +103,22 @@ Controle pessoal de processos judiciais:
 
 Dados no Supabase (tabelas `processos`, `andamentos`, `documentos`, `audiencias`) e arquivos no bucket **privado**
 `documentos`. Regras RLS garantem que cada usuário só vê, envia e apaga o que é seu.
+
+### Clientes (`/clientes/`)
+
+- **Clientes:** ficha (PF/PJ) com CPF/CNPJ validado pelos dígitos verificadores, e-mail, telefone (botão WhatsApp),
+  endereço e observações; vínculo com os processos do sistema Processos (para quem tem acesso aos dois).
+- **Contratos de honorários:** valor fixo (à vista ou parcelado), mensal, êxito (%) ou fixo + êxito. As parcelas
+  são geradas na hora (o centavo que sobra vai na última; dia 31 vira o último dia dos meses mais curtos).
+- **Recebimento:** data, valor, forma (PIX, transferência…). Recebeu menos? Oferece lançar o saldo como nova parcela.
+- **Recibo em PDF** (pdf-lib, gerado no navegador): número sequencial por usuário, valor por extenso, CPF/CNPJ do
+  cliente, contrato, parcela, processo, cidade/data e assinatura. Dados do emitente em ⚙️ Dados do recibo.
+- **Cobrar:** abre o WhatsApp do cliente com a mensagem pronta (valor, vencimento e chave PIX).
+- **Painel:** vencidas, a receber no mês, recebido no mês e no ano; aba Parcelas com filtros e exportação .xlsx.
+- E-mail diário das 7h: seção "💰 Honorários a receber" (vencidas e próximos 7 dias).
+
+Tabelas `clientes`, `clientes_processos`, `contratos`, `parcelas` e `emitente`, com RLS (dono + acesso ao sistema
+"clientes"); gatilho confere que vínculos, contratos e parcelas apontam para registros do mesmo usuário.
 
 ## E-mail diário
 

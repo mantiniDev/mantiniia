@@ -90,7 +90,14 @@ async function montar(userId: string, prefs: Prefs) {
   const { count: semPrazo, error: e7 } = await supabase.from('publicacoes').select('id', { count: 'exact', head: true })
     .eq('user_id', userId).is('prazo_status', null).not('processo_id', 'is', null).gte('data_disponibilizacao', ymdTz(new Date(Date.now() - 30 * 864e5)));
   if (e7) throw e7;
-  return { prazos, semPrazo: semPrazo ?? 0, auds, futuras, parados, pubs: pubs ?? [], processosNovos, excluidos, expirando, docsExcluidos,
+  // honorários (sistema Clientes): parcelas em aberto vencidas ou que vencem nos próximos 7 dias
+  const { data: pc, error: e8 } = await supabase.from('parcelas').select('valor, vencimento, descricao, contratos!inner(descricao, cliente_id, clientes!inner(nome))')
+    .eq('user_id', userId).is('pago_em', null).lte('vencimento', ate).order('vencimento').limit(200);
+  if (e8) throw e8;
+  const honorarios = (pc ?? []).map((x) => { const c = x.contratos as unknown as { descricao: string; cliente_id: string; clientes: { nome: string } };
+    return { valor: Number(x.valor), vencimento: x.vencimento, descricao: x.descricao, contrato: c.descricao, cliente_id: c.cliente_id, cliente: c.clientes.nome, dias: diasAte(x.vencimento + 'T12:00:00-03:00') }; });
+  const { count: nClientes } = await supabase.from('clientes').select('id', { count: 'exact', head: true }).eq('user_id', userId);
+  return { honorarios, nClientes: nClientes ?? 0, prazos, semPrazo: semPrazo ?? 0, auds, futuras, parados, pubs: pubs ?? [], processosNovos, excluidos, expirando, docsExcluidos,
     oabs: oabs ?? [], totalProcessos: (processos ?? []).length };
 }
 const MAX_PUBS_EMAIL = 40;
@@ -129,7 +136,7 @@ type ProcResumo = { titulo?: string; created_at?: string } | null;
 function procDe(x: { processos: unknown }): ProcResumo { return x.processos as ProcResumo; }
 
 type Dados = Awaited<ReturnType<typeof montar>>;
-function html({ prazos, semPrazo, auds, futuras, parados, pubs, processosNovos, excluidos, expirando, docsExcluidos, oabs }: Dados, prefs: Prefs) {
+function html({ honorarios, prazos, semPrazo, auds, futuras, parados, pubs, processosNovos, excluidos, expirando, docsExcluidos, oabs }: Dados, prefs: Prefs) {
   const link = (id: string, t: string) => `<a href="${SITE}/processos/#/p/${id}" style="color:#e63946;text-decoration:none">${esc(t)}</a>`;
   const cor = (n: number) => (n <= 1 ? '#b91c1c' : n <= 7 ? '#c2410c' : '#6b7280');
   const secAud = auds.length ? `
@@ -150,6 +157,17 @@ function html({ prazos, semPrazo, auds, futuras, parados, pubs, processosNovos, 
         <td><b>${esc(z.descricao)}</b><br>${link(z.processo_id, z.proc?.titulo || z.proc?.numero || '')} <span style="color:#6b7280">${esc(z.proc?.numero)}</span></td></tr>`).join('')}
     </table>` : ''}
     ${semPrazo ? `<p style="margin:8px 0 0">📥 <b>${semPrazo}</b> publicação(ões) do DJEN aguardando definição de prazo — <a href="${SITE}/processos/" style="color:#e63946">conferir na aba Prazos</a>.</p>` : ''}` : '';
+  const brl = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  const rotHon = (n: number) => (n < 0 ? `vencida há ${-n} dia${n === -1 ? '' : 's'}` : n === 0 ? 'vence HOJE' : n === 1 ? 'vence amanhã' : `vence em ${n} dias`);
+  const secHon = honorarios.length ? `
+    <h2 style="font-size:16px;margin:24px 0 8px">💰 Honorários a receber</h2>
+    <table cellpadding="6" style="border-collapse:collapse;width:100%;font-size:14px">
+      ${honorarios.map((h) => `<tr style="border-bottom:1px solid #eee">
+        <td style="white-space:nowrap;font-weight:700;color:${h.dias < 0 ? '#b91c1c' : h.dias <= 1 ? '#c2410c' : '#6b7280'}">${rotHon(h.dias)}</td>
+        <td style="white-space:nowrap">${dataBr(h.vencimento)}</td>
+        <td><a href="${SITE}/clientes/#/c/${h.cliente_id}" style="color:#e63946;text-decoration:none">${esc(h.cliente)}</a><br><span style="color:#6b7280">${esc(h.contrato)}${h.descricao ? ' · ' + esc(h.descricao) : ''}</span></td>
+        <td style="white-space:nowrap;text-align:right"><b>${brl(h.valor)}</b></td></tr>`).join('')}
+    </table>` : '';
   const secFut = futuras.length ? `
     <h2 style="font-size:16px;margin:24px 0 8px">📅 ${auds.length ? 'Outras audiências marcadas' : `Audiências marcadas (nenhuma nos próximos ${prefs.dias_aviso_audiencia} dias)`}</h2>
     <table cellpadding="6" style="border-collapse:collapse;width:100%;font-size:14px">
@@ -190,7 +208,7 @@ function html({ prazos, semPrazo, auds, futuras, parados, pubs, processosNovos, 
       <ul style="margin:0 0 10px;padding-left:18px">${excluidos.map((p) => `<li>${link(p.id, p.numero)}${p.titulo ? ' · ' + esc(p.titulo) : ''} <span style="color:#6b7280">(apagado de vez em ${dataLixo(p.excluido_em!)})</span></li>`).join('')}</ul>` : ''}
     ${expirando.length ? `<p style="margin:0 0 6px;color:#b91c1c">Serão apagados definitivamente em até 3 dias:</p>
       <ul style="margin:0;padding-left:18px">${expirando.map((p) => `<li>${link(p.id, p.numero)}${p.titulo ? ' · ' + esc(p.titulo) : ''} <span style="color:#6b7280">(${dataLixo(p.excluido_em!)})</span></li>`).join('')}</ul>` : ''}` : '';
-  const vazio = !prazos.length && !auds.length && !parados.length && !secLixo
+  const vazio = !honorarios.length && !prazos.length && !auds.length && !parados.length && !secLixo
     ? `<p style="margin-top:16px">${futuras.length ? `Nenhuma audiência nos próximos ${prefs.dias_aviso_audiencia} dias` : 'Nenhuma audiência marcada'} e nenhum processo parado${semPrazo ? '' : '; nenhum prazo nos próximos 7 dias'}. Tudo em dia! ✅</p>` : '';
   // sem publicação: diz isso explicitamente, para o e-mail servir de confirmação de que a busca rodou
   const semPub = !pubs.length && oabs.some((o) => o.ativo) ? `
@@ -207,14 +225,14 @@ function html({ prazos, semPrazo, auds, futuras, parados, pubs, processosNovos, 
           : `última busca ${esc(dataHora(o.ultima_busca!))} · ${esc(o.ultimo_resultado ?? '')}`}</td></tr>`).join('')}
     </table>` : '';
   return `<div style="font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;max-width:640px;margin:auto;color:#1d2129">
-    <p style="font-weight:800;font-size:18px;margin:0">mantini<span style="color:#e63946">.ia</span><span style="color:#6b7280">.br</span> · Processos</p>
-    ${secPrazo}${secAud}${secPub}${semPub}${secPar}${secFut}${secLixo}${vazio}${secOab}
+    <p style="font-weight:800;font-size:18px;margin:0">mantini<span style="color:#e63946">.ia</span><span style="color:#6b7280">.br</span> · Resumo do dia</p>
+    ${secPrazo}${secHon}${secAud}${secPub}${semPub}${secPar}${secFut}${secLixo}${vazio}${secOab}
     <p style="margin-top:28px"><a href="${SITE}/processos/" style="background:#e63946;color:#fff;padding:10px 16px;border-radius:999px;text-decoration:none">Abrir Processos</a></p>
     <p style="color:#9aa1ad;font-size:12px;margin-top:24px">Aviso diário automático. Para desligar ou mudar os prazos, use o botão ✉️ Avisos no sistema Processos.</p>
   </div>`;
 }
 
-function assunto({ prazos, semPrazo, auds, parados, pubs, excluidos, expirando, docsExcluidos, oabs }: Dados) {
+function assunto({ honorarios, prazos, semPrazo, auds, parados, pubs, excluidos, expirando, docsExcluidos, oabs }: Dados) {
   const partes: string[] = [];
   const pzVencidos = prazos.filter((z) => z.dias < 0).length, pzHoje = prazos.filter((z) => z.dias === 0).length;
   const pzAmanha = prazos.filter((z) => z.dias === 1).length, pzOutros = prazos.length - pzVencidos - pzHoje - pzAmanha;
@@ -223,6 +241,9 @@ function assunto({ prazos, semPrazo, auds, parados, pubs, excluidos, expirando, 
   if (pzAmanha) partes.push(`${pzAmanha} prazo(s) amanhã`);
   if (pzOutros) partes.push(`${pzOutros} prazo(s) na semana`);
   if (semPrazo) partes.push(`${semPrazo} publicação(ões) sem prazo definido`);
+  const honVenc = honorarios.filter((h) => h.dias < 0).length, honProx = honorarios.length - honVenc;
+  if (honVenc) partes.push(`${honVenc} parcela(s) de honorários vencida(s)`);
+  if (honProx) partes.push(`${honProx} parcela(s) a receber na semana`);
   const hoje = auds.filter((a) => diasAte(a.data_hora) === 0).length;
   const amanha = auds.filter((a) => diasAte(a.data_hora) === 1).length;
   if (hoje) partes.push(`${hoje} audiência(s) HOJE`);
@@ -292,7 +313,7 @@ Deno.serve(async (req) => {
     const d = await montar(u.id, prefs);
     const { auds, parados, pubs } = d;
     // e-mail todo dia para quem usa o sistema (tem OAB ou processo), mesmo sem novidade; quem nunca usou não recebe
-    if (!teste && !d.oabs.length && !d.totalProcessos && !d.excluidos.length && !d.expirando.length) { resultado.push({ email: u.email, enviado: false, motivo: 'não usa Processos' }); continue; }
+    if (!teste && !d.oabs.length && !d.totalProcessos && !d.excluidos.length && !d.expirando.length && !d.nClientes) { resultado.push({ email: u.email, enviado: false, motivo: 'não usa Processos nem Clientes' }); continue; }
     const subject = (teste ? '[Teste] ' : '') + assunto(d);
     const body = html(d, prefs);
     if (dry) { resultado.push({ email: u.email, subject, audiencias: auds.length, parados: parados.length, publicacoes: pubs.length, html: body }); continue; }

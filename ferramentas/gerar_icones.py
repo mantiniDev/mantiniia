@@ -68,6 +68,11 @@ PROCESSOS = sistema('<g fill="none" stroke="#fffdf3" stroke-width="2.3" stroke-l
                     '<path d="M25 25.5l-3.6 7.6M25 25.5l3.6 7.6M39 25.5l-3.6 7.6M39 25.5l3.6 7.6"/>'
                     '<path d="M20.6 33.2a4.4 3 0 0 0 8.8 0zM34.6 33.2a4.4 3 0 0 0 8.8 0z" fill="#fffdf3"/>'
                     '</g><circle cx="32" cy="21.2" r="1.7" fill="#fffdf3"/>')
+CLIENTES = sistema('<g fill="none" stroke="#fffdf3" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">'
+                   '<circle cx="28" cy="25.2" r="4.4"/><path d="M19.4 40c0-5.3 3.8-8.8 8.6-8.8 2.4 0 4.5.9 6 2.4"/></g>'
+                   '<circle cx="39.6" cy="36.4" r="5.6" fill="#04111a" stroke="#fffdf3" stroke-width="2.2"/>'
+                   '<path d="M41.5 34.6c-.4-.8-1.1-1.1-1.9-1.1-1 0-1.8.5-1.8 1.4 0 1.9 3.7 1.1 3.7 3.1 0 .9-.8 1.5-1.9 1.5-.9 0-1.7-.4-2-1.2M39.6 32.4v1.1M39.6 39.5v1.1" '
+                   'fill="none" stroke="#fffdf3" stroke-width="1.3" stroke-linecap="round"/>')
 NOVO = sistema('<path d="M32 24v16M24 32h16" stroke="#fffdf3" stroke-width="3.2" stroke-linecap="round"/>')
 
 def svg_redondo(centro):
@@ -91,7 +96,7 @@ if __name__ == '__main__':
     os.makedirs(out + '/sistemas', exist_ok=True)
     open(out + '/icon.svg', 'w').write(svg_redondo(MA))
     open(out + '/logo-quadrado.svg', 'w').write(svg_quadrado(MA))
-    for nome, c in [('in_clock', IN_CLOCK), ('processos', PROCESSOS), ('novo', NOVO)]:
+    for nome, c in [('in_clock', IN_CLOCK), ('processos', PROCESSOS), ('clientes', CLIENTES), ('novo', NOVO)]:
         open(f'{out}/sistemas/{nome}.svg', 'w').write(svg_redondo(c))
     # logo horizontal: reaproveita o nome "mantini.ia.br" (Orbitron) já desenhado em logo-nome.svg
     nome = open(os.path.join(raiz, 'ferramentas', 'logo-nome.svg')).read()
