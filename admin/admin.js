@@ -11,7 +11,7 @@
   const cfg = window.MANTINI_CONFIG;
   const API = cfg.supabaseUrl + '/functions/v1/admin';
   const PARADO_MS = 30 * 60 * 1000;
-  const NOMES = { in_clock: 'in_clock', processos: 'Processos', clientes: 'Clientes' };
+  const NOMES = { in_clock: 'in_clock', processos: 'Processos', clientes: 'Clientes', lgpd: 'Kit LGPD' };
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const dataHora = (s) => (s ? new Date(s).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : '—');

@@ -13,7 +13,7 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
 const SITE = 'https://www.mantini.ia.br';
-const SISTEMAS = ['in_clock', 'processos', 'clientes'];
+const SISTEMAS = ['in_clock', 'processos', 'clientes', 'lgpd'];
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const sb = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, {
   auth: { persistSession: false, autoRefreshToken: false },

@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Kit LGPD — mantini.ia.br</title>
+  <link rel="stylesheet" href="../assets/base.css?v=20261116a">
+  <link rel="icon" href="../assets/sistemas/lgpd.svg?v=20261122">
+  <style>
+    .toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; margin-bottom: 14px; }
+    .toolbar .grow { flex: 1; min-width: 200px; }
+    tbody tr.click { cursor: pointer; }
+    .tabela-wrap { overflow-x: auto; }
+    table td { overflow-wrap: anywhere; }
+    td.num, th.num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+    .pill { display: inline-block; padding: 1px 9px; border-radius: 999px; font-size: 12px; background: var(--line); color: var(--muted); white-space: nowrap; }
+    .pill.alto { background: #fee2e2; color: #b91c1c; font-weight: 600; }
+    .pill.medio { background: #fef3c7; color: #92400e; }
+    .pill.baixo { background: #dcfce7; color: #166534; }
+    .pill.sens { background: #ede9fe; color: #5b21b6; }
+    .pill.revisado { background: #dcfce7; color: #166534; }
+    @media (prefers-color-scheme: dark) { .pill.alto { background: #4c1d1d; color: #fca5a5; } .pill.medio { background: #42300f; color: #fcd34d; } .pill.baixo, .pill.revisado { background: #14351f; color: #86efac; } .pill.sens { background: #2e1f57; color: #c4b5fd; } }
+    .head { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; }
+    .head h1 { margin: 0; font-size: 22px; }
+    .resumo { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 14px; margin-bottom: 16px; }
+    .resumo .card { margin: 0; }
+    .resumo span { display: block; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .03em; }
+    .resumo b { font-size: 24px; }
+    .ficha { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px 24px; margin-top: 12px; }
+    .ficha div span { display: block; font-size: 12px; color: var(--muted); }
+    .barra { height: 6px; border-radius: 999px; background: var(--line); overflow: hidden; min-width: 70px; }
+    .barra i { display: block; height: 100%; background: var(--accent); }
+    .barra.ok i { background: #16a34a; }
+    /* editor da operação */
+    .editor { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 16px; align-items: start; }
+    @media (max-width: 960px) { .editor { grid-template-columns: 1fr; } }
+    .lateral { position: sticky; top: 12px; }
+    .secao h2 { margin: 0 0 10px; font-size: 17px; }
+    .secao .ajuda { font-size: 13px; color: var(--muted); margin: -4px 0 10px; }
+    .opcoes { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 4px 14px; }
+    .opcoes label { display: flex; gap: 6px; align-items: flex-start; font-size: 14px; }
+    .opcoes label input { margin-top: 3px; }
+    textarea { font: inherit; border: 1px solid var(--line); border-radius: 8px; padding: 8px; background: var(--bg); color: var(--text); width: 100%; box-sizing: border-box; }
+    .stack { display: flex; flex-direction: column; gap: 10px; }
+    .alerta { border-left: 3px solid #d97706; padding: 6px 10px; background: var(--bg); border-radius: 6px; font-size: 13px; margin-bottom: 8px; }
+    .alerta.erro { border-left-color: var(--danger); }
+    .alerta.info { border-left-color: #2563eb; }
+    .falta { font-size: 13px; color: var(--muted); margin: 6px 0 0; padding-left: 18px; }
+    .modelos { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; }
+    .modelos button { text-align: left; padding: 10px 12px; border-radius: 10px; height: auto; white-space: normal; }
+    .modelos button b { display: block; margin-bottom: 2px; }
+    .modelos button span { font-size: 12px; color: var(--muted); }
+    .vazio { color: var(--muted); padding: 10px 0; }
+    #toast { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); background: var(--text); color: var(--bg); padding: 10px 16px; border-radius: 10px; font-size: 14px; display: none; z-index: 10; }
+    dialog.largo { width: min(820px, 96vw); }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="../"><img src="../assets/icon.svg?v=20261121" width="28" height="28" alt=""><span>mantini<span class="ia">.ia</span><span class="tld">.br</span></span></a><span class="sep">/</span><a href="#/" class="sys-name"><img src="../assets/sistemas/lgpd.svg?v=20261122" width="28" height="28" alt="">Kit LGPD</a>
+    <span class="spacer"></span>
+    <span id="user-slot"></span>
+  </header>
+
+  <main>
+    <!-- ============ EMPRESAS ============ -->
+    <section id="view-lista">
+      <div class="toolbar">
+        <div class="grow"><h1 style="margin:0;font-size:22px">Empresas atendidas</h1><span class="small muted">Inventário das operações de tratamento de dados pessoais (ROPA — LGPD, art. 37).</span></div>
+        <label class="field">Buscar<input id="q" placeholder="empresa, CNPJ, encarregado…"></label>
+        <button class="primary" id="btn-nova-org">Nova empresa</button>
+      </div>
+      <div class="card tabela-wrap">
+        <table>
+          <thead><tr><th>Empresa</th><th>CNPJ</th><th>Encarregado (DPO)</th><th class="num">Operações</th><th class="num">Dados sensíveis</th><th class="num">Risco alto</th><th>Preenchimento</th></tr></thead>
+          <tbody id="orgs-body"><tr><td colspan="7" class="muted">Carregando…</td></tr></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ============ EMPRESA ============ -->
+    <section id="view-org" class="hidden">
+      <p><a href="#/">← Todas as empresas</a></p>
+      <div class="card">
+        <div class="head">
+          <div><h1 id="o-nome"></h1><div class="muted" id="o-sub"></div></div>
+          <div class="row"><button id="o-edit">Editar</button><button class="danger" id="o-del">Excluir</button></div>
+        </div>
+        <div class="ficha" id="o-ficha"></div>
+      </div>
+      <div class="resumo">
+        <div class="card"><span>Operações</span><b id="o-n">0</b></div>
+        <div class="card"><span>Com dados sensíveis</span><b id="o-sens">0</b></div>
+        <div class="card"><span>Crianças e adolescentes</span><b id="o-criancas">0</b></div>
+        <div class="card"><span>Transferência internacional</span><b id="o-transf">0</b></div>
+        <div class="card"><span>Risco alto</span><b id="o-alto">0</b></div>
+        <div class="card"><span>Preenchimento</span><b id="o-compl">—</b></div>
+      </div>
+      <div class="card">
+        <div class="toolbar">
+          <h2 class="grow" style="margin:0">Operações de tratamento</h2>
+          <button id="o-modelo">A partir de modelo</button>
+          <button class="primary" id="o-nova-op">Nova operação</button>
+          <button id="o-xlsx">Exportar .xlsx</button>
+          <button id="o-pdf">Relatório PDF</button>
+        </div>
+        <div class="tabela-wrap"><table>
+          <thead><tr><th>Operação</th><th>Área</th><th>Base legal</th><th>Titulares</th><th>Risco</th><th>Situação</th><th>Preenchimento</th></tr></thead>
+          <tbody id="ops-body"></tbody>
+        </table></div>
+      </div>
+    </section>
+
+    <!-- ============ OPERAÇÃO ============ -->
+    <section id="view-op" class="hidden">
+      <p><a href="#" id="op-voltar">← Voltar para a empresa</a></p>
+      <form id="form-op" autocomplete="off">
+        <div class="editor">
+          <div>
+            <div class="card secao">
+              <div class="head" style="margin-bottom:10px"><h1 id="op-titulo" style="font-size:20px">Nova operação de tratamento</h1><span class="muted small" id="op-org"></span></div>
+              <div class="stack">
+                <label class="field">Operação / processo<input id="f-nome" required placeholder="ex.: Folha de pagamento, Cadastro de clientes, Câmeras de segurança"></label>
+                <div class="row">
+                  <label class="field grow">Área / departamento<input id="f-area" placeholder="ex.: RH, Comercial, Financeiro"></label>
+                  <label class="field grow">Responsável<input id="f-resp" placeholder="pessoa ou cargo"></label>
+                  <label class="field">Papel da empresa<select id="f-papel"><option value="controlador">Controladora</option><option value="operador">Operadora</option><option value="controlador_conjunto">Controladora conjunta</option></select></label>
+                </div>
+                <label class="field">Finalidade<textarea id="f-finalidade" rows="2" placeholder="Para que os dados são usados — finalidade específica e informada ao titular (art. 6º, I)"></textarea></label>
+              </div>
+            </div>
+
+            <div class="card secao">
+              <h2>Titulares e dados</h2>
+              <p class="ajuda">De quem são os dados e quais dados são tratados.</p>
+              <b class="small">Titulares</b>
+              <div class="opcoes" id="o-titulares"></div>
+              <label class="field" style="margin-top:6px">Outros titulares<input id="f-titulares-outros"></label>
+              <label style="display:flex;gap:6px;align-items:center;margin-top:8px"><input type="checkbox" id="f-criancas"> Envolve dados de <b>crianças ou adolescentes</b> (art. 14)</label>
+              <b class="small" style="display:block;margin-top:14px">Dados pessoais</b>
+              <div class="opcoes" id="o-dados"></div>
+              <label class="field" style="margin-top:6px">Outros dados<input id="f-dados-outros"></label>
+              <b class="small" style="display:block;margin-top:14px">Dados pessoais sensíveis (art. 5º, II)</b>
+              <div class="opcoes" id="o-sensiveis"></div>
+              <div class="row" style="margin-top:10px">
+                <label class="field">Volume aproximado de titulares<select id="f-volume"><option value="">—</option><option>até 100</option><option>100 a 1.000</option><option>1.000 a 10.000</option><option>10.000 a 100.000</option><option>mais de 100.000</option></select></label>
+                <label class="field grow">Origem dos dados<input id="f-fonte" placeholder="ex.: o próprio titular, formulário do site, terceiros, bases públicas"></label>
+              </div>
+            </div>
+
+            <div class="card secao">
+              <h2>Base legal</h2>
+              <p class="ajuda">Dados comuns: art. 7º. Havendo dados sensíveis: art. 11.</p>
+              <div class="stack">
+                <label class="field">Hipótese legal<select id="f-base"></select></label>
+                <label class="field">Justificativa<textarea id="f-base-just" rows="2" placeholder="Por que essa hipótese se aplica (ex.: qual lei obriga; qual contrato; resumo do teste de legítimo interesse)"></textarea></label>
+              </div>
+            </div>
+
+            <div class="card secao">
+              <h2>Armazenamento, compartilhamento e transferência</h2>
+              <div class="stack">
+                <div class="row">
+                  <label class="field">Formato<select id="f-formato"><option value="">—</option><option value="digital">Digital</option><option value="fisico">Físico (papel)</option><option value="ambos">Digital e físico</option></select></label>
+                  <label class="field grow">Sistemas / onde ficam<input id="f-sistemas" placeholder="ex.: ERP, planilhas, Google Drive, arquivo físico"></label>
+                </div>
+                <label class="field">Compartilhamento<textarea id="f-compart" rows="2" placeholder="Com quem os dados são compartilhados e para quê (órgãos públicos, parceiros, contabilidade…)"></textarea></label>
+                <label class="field">Operadores (quem trata em nome da empresa)<input id="f-operadores" placeholder="ex.: escritório de contabilidade, provedor de nuvem, folha terceirizada"></label>
+                <label style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="f-transf"> Há <b>transferência internacional</b> de dados (art. 33)</label>
+                <div class="row" id="transf-campos">
+                  <label class="field grow">Países<input id="f-paises" placeholder="ex.: Estados Unidos (servidores do provedor)"></label>
+                  <label class="field grow">Mecanismo (art. 33)<select id="f-mecanismo">
+                    <option value="">—</option><option>Cláusulas-padrão contratuais (Res. CD/ANPD 19/2024)</option><option>País com nível de proteção adequado</option>
+                    <option>Normas corporativas globais</option><option>Cláusulas contratuais específicas aprovadas</option><option>Consentimento específico e destacado</option>
+                    <option>Execução de contrato a pedido do titular</option><option>Cooperação jurídica / proteção da vida / outra hipótese do art. 33</option></select></label>
+                </div>
+              </div>
+            </div>
+
+            <div class="card secao">
+              <h2>Retenção, descarte e segurança</h2>
+              <div class="stack">
+                <label class="field">Prazo de retenção<input id="f-retencao" placeholder="ex.: durante o contrato e 5 anos após o término (prazo prescricional)"></label>
+                <label class="field">Forma de descarte<input id="f-descarte" placeholder="ex.: exclusão segura do sistema; fragmentação do papel; anonimização"></label>
+              </div>
+              <b class="small" style="display:block;margin-top:12px">Medidas de segurança (art. 46)</b>
+              <div class="opcoes" id="o-seguranca"></div>
+              <label class="field" style="margin-top:6px">Outras medidas<input id="f-seg-outros"></label>
+            </div>
+
+            <div class="card secao">
+              <h2>Risco e revisão</h2>
+              <div class="row">
+                <label class="field">Risco<select id="f-risco"><option value="">—</option><option value="baixo">Baixo</option><option value="medio">Médio</option><option value="alto">Alto</option></select></label>
+                <span class="small muted" id="risco-sug" style="align-self:end;padding-bottom:8px"></span>
+              </div>
+              <div class="row" style="margin-top:8px">
+                <label class="field">Situação<select id="f-status"><option value="rascunho">Rascunho</option><option value="revisado">Revisado</option></select></label>
+                <label class="field">Revisado em<input type="date" id="f-revisado"></label>
+              </div>
+              <label class="field" style="margin-top:8px">Observações<textarea id="f-obs" rows="2"></textarea></label>
+            </div>
+          </div>
+
+          <aside class="lateral">
+            <div class="card">
+              <b>Preenchimento</b>
+              <div class="barra" style="margin:8px 0 4px"><i id="compl-barra"></i></div>
+              <span class="small" id="compl-txt"></span>
+              <ul class="falta" id="compl-falta"></ul>
+            </div>
+            <div class="card">
+              <b>Pontos de atenção</b>
+              <div id="alertas" style="margin-top:8px"></div>
+            </div>
+            <div class="card stack">
+              <button class="primary" type="submit">Salvar</button>
+              <button type="button" id="op-dup">Duplicar</button>
+              <button type="button" class="danger" id="op-del">Excluir</button>
+            </div>
+          </aside>
+        </div>
+      </form>
+    </section>
+  </main>
+
+  <!-- Empresa -->
+  <dialog id="dlg-org">
+    <form method="dialog" id="form-org">
+      <h2 style="margin-top:0" id="org-titulo">Nova empresa</h2>
+      <div class="stack">
+        <label class="field hidden" id="org-cli-wrap">Puxar do sistema Clientes (opcional)<select id="org-cliente"><option value="">—</option></select></label>
+        <label class="field">Nome / razão social<input id="org-nome" required></label>
+        <div class="row">
+          <label class="field grow">CNPJ<input id="org-cnpj" inputmode="numeric"><small id="org-cnpj-hint"></small></label>
+          <label class="field grow">Setor<input id="org-setor" placeholder="ex.: saúde, varejo, educação"></label>
+        </div>
+        <label class="field">Endereço<input id="org-end"></label>
+        <b class="small">Encarregado pelo tratamento (DPO) — art. 41</b>
+        <div class="row">
+          <label class="field grow">Nome<input id="org-dpo"></label>
+          <label class="field grow">E-mail<input id="org-dpo-email" type="email"></label>
+          <label class="field grow">Telefone<input id="org-dpo-tel"></label>
+        </div>
+        <label class="field">Observações<textarea id="org-obs" rows="2"></textarea></label>
+      </div>
+      <div class="actions"><button value="cancel" formnovalidate>Cancelar</button><button value="ok" class="primary">Salvar</button></div>
+    </form>
+  </dialog>
+
+  <!-- Modelos -->
+  <dialog id="dlg-modelos" class="largo">
+    <h2 style="margin-top:0">Começar a partir de um modelo</h2>
+    <p class="small muted">O modelo preenche os campos com sugestões comuns. Revise tudo e ajuste à realidade da empresa antes de marcar como revisado.</p>
+    <div class="modelos" id="lista-modelos"></div>
+    <div class="actions"><button type="button" id="modelos-fechar">Cancelar</button></div>
+  </dialog>
+
+  <div id="toast" role="status"></div>
+
+  <script src="../assets/vendor/supabase-2.119.0.js"></script>
+  <script src="../assets/config.js"></script>
+  <script src="../assets/auth.js?v=20261115a" data-root="../" data-protect data-sistema="lgpd"></script>
+  <script src="../assets/export.js"></script>
+  <script src="catalogo.js?v=20261122a"></script>
+  <script src="app.js?v=20261122a"></script>
+</body>
+</html>
