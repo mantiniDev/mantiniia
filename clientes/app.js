@@ -717,14 +717,27 @@
     const seguro = (t) => String(t ?? '').replace(/[^\x09\x0a\x0d\x20-\x7e\xa0-\xff–—‘’“”•…]/g, '');
     let y = 770;
     const texto = (t, x, yy, o = {}) => pg.drawText(seguro(t), { x, y: yy, size: o.size || 11, font: o.font || f, color: o.color || preto });
+    // parágrafo justificado: as linhas cheias ocupam toda a largura; a última linha fica alinhada à esquerda
     function paragrafo(t, size = 12.5, lh = 20, font = f) {
+      const larg = (w) => font.widthOfTextAtSize(w, size), espaco = larg(' ');
       for (const par of seguro(t).split('\n')) {
-        let linha = '';
-        for (const w of par.split(' ')) {
-          const tent = linha ? linha + ' ' + w : w;
-          if (font.widthOfTextAtSize(tent, size) > L && linha) { texto(linha, M, y, { size, font }); y -= lh; linha = w; } else linha = tent;
+        const palavras = par.split(' ').filter(Boolean), linhas = [];
+        let atual = [];
+        for (const w of palavras) {
+          const tent = [...atual, w];
+          if (atual.length && larg(tent.join(' ')) > L) { linhas.push(atual); atual = [w]; } else atual = tent;
         }
-        if (linha) { texto(linha, M, y, { size, font }); y -= lh; }
+        if (atual.length) linhas.push(atual);
+        linhas.forEach((ws, i) => {
+          const ultima = i === linhas.length - 1;
+          if (ultima || ws.length < 2) { texto(ws.join(' '), M, y, { size, font }); }
+          else {
+            const vao = (L - ws.reduce((t2, w) => t2 + larg(w), 0)) / (ws.length - 1);
+            let x = M;
+            for (const w of ws) { texto(w, x, y, { size, font }); x += larg(w) + (vao > espaco * 4 ? espaco : vao); }
+          }
+          y -= lh;
+        });
       }
     }
     // cabeçalho
