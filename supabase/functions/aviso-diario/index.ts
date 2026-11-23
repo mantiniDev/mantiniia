@@ -90,7 +90,7 @@ async function montar(userId: string, prefs: Prefs) {
   const { count: semPrazo, error: e7 } = await supabase.from('publicacoes').select('id', { count: 'exact', head: true })
     .eq('user_id', userId).is('prazo_status', null).not('processo_id', 'is', null).gte('data_disponibilizacao', ymdTz(new Date(Date.now() - 30 * 864e5)));
   if (e7) throw e7;
-  // honorários (sistema Clientes): parcelas em aberto vencidas ou que vencem nos próximos 7 dias
+  // valores a receber (sistema Clientes): parcelas em aberto vencidas ou que vencem nos próximos 7 dias
   const { data: pc, error: e8 } = await supabase.from('parcelas').select('valor, vencimento, descricao, contratos!inner(descricao, cliente_id, clientes!inner(nome))')
     .eq('user_id', userId).is('pago_em', null).lte('vencimento', ate).order('vencimento').limit(200);
   if (e8) throw e8;
@@ -160,7 +160,7 @@ function html({ honorarios, prazos, semPrazo, auds, futuras, parados, pubs, proc
   const brl = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   const rotHon = (n: number) => (n < 0 ? `vencida há ${-n} dia${n === -1 ? '' : 's'}` : n === 0 ? 'vence HOJE' : n === 1 ? 'vence amanhã' : `vence em ${n} dias`);
   const secHon = honorarios.length ? `
-    <h2 style="font-size:16px;margin:24px 0 8px">💰 Honorários a receber</h2>
+    <h2 style="font-size:16px;margin:24px 0 8px">💰 Valores a receber</h2>
     <table cellpadding="6" style="border-collapse:collapse;width:100%;font-size:14px">
       ${honorarios.map((h) => `<tr style="border-bottom:1px solid #eee">
         <td style="white-space:nowrap;font-weight:700;color:${h.dias < 0 ? '#b91c1c' : h.dias <= 1 ? '#c2410c' : '#6b7280'}">${rotHon(h.dias)}</td>
@@ -242,7 +242,7 @@ function assunto({ honorarios, prazos, semPrazo, auds, parados, pubs, excluidos,
   if (pzOutros) partes.push(`${pzOutros} prazo(s) na semana`);
   if (semPrazo) partes.push(`${semPrazo} publicação(ões) sem prazo definido`);
   const honVenc = honorarios.filter((h) => h.dias < 0).length, honProx = honorarios.length - honVenc;
-  if (honVenc) partes.push(`${honVenc} parcela(s) de honorários vencida(s)`);
+  if (honVenc) partes.push(`${honVenc} parcela(s) a receber vencida(s)`);
   if (honProx) partes.push(`${honProx} parcela(s) a receber na semana`);
   const hoje = auds.filter((a) => diasAte(a.data_hora) === 0).length;
   const amanha = auds.filter((a) => diasAte(a.data_hora) === 1).length;

@@ -124,7 +124,7 @@ Dados no Supabase (tabelas `processos`, `andamentos`, `documentos`, `audiencias`
   ⚙️ Dados do recibo e cada contrato passa a usar o último texto editado nele.
 - **Cobrar:** abre o WhatsApp do cliente com a mensagem pronta (valor, vencimento e chave PIX).
 - **Painel:** vencidas, a receber no mês, recebido no mês e no ano; aba Parcelas com filtros e exportação .xlsx.
-- E-mail diário das 7h: seção "💰 Honorários a receber" (vencidas e próximos 7 dias).
+- E-mail diário das 7h: seção "💰 Valores a receber" (vencidas e próximos 7 dias).
 
 Tabelas `clientes`, `clientes_processos`, `contratos`, `contratos_anexos`, `parcelas` e `emitente`, com RLS (dono + acesso ao sistema
 "clientes"); gatilho confere que vínculos, contratos e parcelas apontam para registros do mesmo usuário.
