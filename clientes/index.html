@@ -257,6 +257,44 @@
     </form>
   </dialog>
 
+  <!-- Recibo (edição antes de gerar o PDF) -->
+  <dialog id="dlg-recibo" class="largo">
+    <form method="dialog" id="form-recibo" autocomplete="off">
+      <h2 style="margin-top:0">Recibo</h2>
+      <p class="small muted" style="margin-top:-6px"><b id="rb-numero"></b> · <span id="rb-contrato"></span></p>
+      <div class="stack">
+        <div class="row">
+          <label class="field grow">Recebi de<input id="rb-pagador" required></label>
+          <label class="field">CPF / CNPJ<input id="rb-pagador-doc" placeholder="opcional"></label>
+          <label class="field" style="width:140px">Valor (R$)<input id="rb-valor" inputmode="decimal" required></label>
+        </div>
+        <div class="row">
+          <label class="field" style="width:240px">Referente a (serviço)<input id="rb-servico" placeholder="honorários advocatícios"></label>
+          <label class="field grow">Descrição<input id="rb-referente"></label>
+        </div>
+        <label class="field">Pagamento<textarea id="rb-pagamento" rows="2"></textarea></label>
+        <label class="field">Quitação<textarea id="rb-quitacao" rows="2"></textarea></label>
+        <div class="row">
+          <label class="field grow">Cidade<input id="rb-cidade"></label>
+          <label class="field">Data do recibo<input id="rb-data" type="date"></label>
+        </div>
+        <b class="small">Quem recebeu (assinatura)</b>
+        <div class="row">
+          <label class="field grow">Nome<input id="rb-em-nome" required></label>
+          <label class="field grow">Registro profissional<input id="rb-em-reg" placeholder="opcional"></label>
+          <label class="field">CPF / CNPJ<input id="rb-em-doc" placeholder="opcional"></label>
+        </div>
+        <label class="field">Endereço<input id="rb-em-end" placeholder="opcional"></label>
+        <div class="prev"><b>Prévia:</b> <span id="rb-prev"></span></div>
+      </div>
+      <div class="actions">
+        <button type="button" id="rb-padrao" style="margin-right:auto">Restaurar padrão</button>
+        <button value="cancel" formnovalidate>Cancelar</button>
+        <button value="ok" class="primary">Gerar PDF</button>
+      </div>
+    </form>
+  </dialog>
+
   <!-- Emitente do recibo -->
   <dialog id="dlg-emitente">
     <form method="dialog" id="form-emitente">
@@ -266,13 +304,14 @@
         <label class="field">Nome<input id="em-nome" required placeholder="nome completo ou do escritório"></label>
         <div class="row">
           <label class="field grow">CPF / CNPJ<input id="em-doc" inputmode="numeric"></label>
-          <label class="field grow">OAB<input id="em-oab" placeholder="ex.: OAB/RJ 123.456"></label>
+          <label class="field grow">Registro profissional<input id="em-oab" placeholder="ex.: OAB/RJ 123.456, CRC, CREA (opcional)"></label>
         </div>
         <label class="field">Endereço<input id="em-end"></label>
         <div class="row">
           <label class="field grow">Cidade (para a data do recibo)<input id="em-cidade" placeholder="ex.: Rio de Janeiro"></label>
           <label class="field grow">Chave PIX (vai na mensagem de cobrança)<input id="em-pix"></label>
         </div>
+        <label class="field">Texto padrão do serviço no recibo<input id="em-servico" placeholder="honorários advocatícios"><small>Sai em "referente a …". Dá para mudar em cada recibo; o contrato guarda o último texto usado.</small></label>
       </div>
       <div class="actions"><button value="cancel" formnovalidate>Cancelar</button><button value="ok" class="primary">Salvar</button></div>
     </form>
@@ -284,6 +323,6 @@
   <script src="../assets/config.js"></script>
   <script src="../assets/auth.js?v=20261115a" data-root="../" data-protect data-sistema="clientes"></script>
   <script src="../assets/export.js"></script>
-  <script src="app.js?v=20261122a"></script>
+  <script src="app.js?v=20261123a"></script>
 </body>
 </html>

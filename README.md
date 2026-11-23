@@ -116,8 +116,11 @@ Dados no Supabase (tabelas `processos`, `andamentos`, `documentos`, `audiencias`
   (`<user_id>/<contrato_id>/<arquivo>`), aberto só por link temporário de 5 minutos; apagar o contrato, o cliente ou a
   conta (admin) apaga os arquivos.
 - **Recebimento:** data, valor, forma (PIX, transferência…). Recebeu menos? Oferece lançar o saldo como nova parcela.
-- **Recibo em PDF** (pdf-lib, gerado no navegador): número sequencial por usuário, valor por extenso, CPF/CNPJ do
-  cliente, contrato, parcela, processo, cidade/data e assinatura. Dados do emitente em ⚙️ Dados do recibo.
+- **Recibo em PDF** (pdf-lib, gerado no navegador): antes de gerar abre uma tela com tudo editável (quem pagou,
+  CPF/CNPJ, valor, "referente a", pagamento, quitação, cidade/data e quem assina), com prévia do texto. O que for
+  editado fica guardado na parcela (`recibo_dados`) e a reimpressão sai igual. **Numeração própria de cada contrato**
+  (001, 002…), via `proximo_recibo_contrato()`. O texto do serviço ("honorários advocatícios", "consultoria"…) vem dos
+  ⚙️ Dados do recibo e cada contrato passa a usar o último texto editado nele.
 - **Cobrar:** abre o WhatsApp do cliente com a mensagem pronta (valor, vencimento e chave PIX).
 - **Painel:** vencidas, a receber no mês, recebido no mês e no ano; aba Parcelas com filtros e exportação .xlsx.
 - E-mail diário das 7h: seção "💰 Honorários a receber" (vencidas e próximos 7 dias).

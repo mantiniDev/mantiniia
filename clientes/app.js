@@ -158,7 +158,7 @@
       <td class="actions">${acoesParcela(p, cl)}</td></tr>`;
   }
   function acoesParcela(p, cl) {
-    if (p.pago_em) return `<button data-pact="recibo">Recibo${p.recibo_numero ? ' nº ' + p.recibo_numero : ''}</button> <button data-pact="desfazer" title="Desfazer o recebimento">Desfazer</button>`;
+    if (p.pago_em) return `<button data-pact="recibo">Recibo${p.recibo_numero ? ' nº ' + String(p.recibo_numero).padStart(3, '0') : ''}</button> <button data-pact="desfazer" title="Desfazer o recebimento">Desfazer</button>`;
     const cobrar = cl?.telefone && waLink(cl.telefone) ? '<button data-pact="cobrar" title="Mensagem de cobrança pelo WhatsApp">Cobrar</button> ' : '';
     return `<button class="primary" data-pact="receber">Recebido</button> ${cobrar}`;
   }
@@ -623,79 +623,138 @@
       s.onload = () => ok(window.PDFLib); s.onerror = () => erro(new Error('não foi possível carregar o gerador de PDF')); document.head.appendChild(s);
     });
   }
-  let reciboPendente = null;
+  // O recibo abre numa tela de edição (tudo preenchido e editável); o que for editado fica guardado na parcela
+  // (recibo_dados) e sai igual na reimpressão. Numeração própria de cada contrato: 1, 2, 3…
+  let reciboPendente = null, rbParc = null;
+  const MESES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+  const nRecibo = (n) => String(n).padStart(3, '0');
   async function gerarRecibo(parcelaId) {
     if (!emitente?.nome) { reciboPendente = parcelaId; toast('Preencha os dados do recibo (uma vez só).'); return abrirEmitente(); }
-    const { data: p, error } = await sb.from('parcelas').select('*, contratos(descricao, processo_id, parcelas(id, vencimento, numero), clientes(nome, documento, tipo))').eq('id', parcelaId).single();
+    const { data: p, error } = await sb.from('parcelas')
+      .select('*, contratos(id, descricao, processo_id, proximo_recibo, parcelas(id, vencimento, numero, recibo_dados), clientes(nome, documento, tipo))').eq('id', parcelaId).single();
     if (error) return fail(error);
     if (!p.pago_em) return toast('Registre o recebimento antes de gerar o recibo.', true);
-    let numero = p.recibo_numero;
-    if (!numero) {
-      const { data: n, error: e2 } = await sb.rpc('proximo_recibo');
-      if (e2) return fail(e2);
-      numero = n;
-      await sb.from('parcelas').update({ recibo_numero: numero }).eq('id', p.id);
-    }
-    try {
-      const bytes = await montarRecibo(p, numero);
-      const nome = `recibo_${String(numero).padStart(4, '0')}_${p.contratos.clientes.nome.normalize('NFD').replace(/[^\w ]/g, '').trim().replace(/\s+/g, '_').toLowerCase()}.pdf`;
-      Export.download(new Blob([bytes], { type: 'application/pdf' }), nome);
-    } catch (e) { fail(e); }
+    rbParc = p;
+    preencherRecibo({ ...padraoRecibo(p), ...(p.recibo_dados || {}) });
+    $('rb-numero').textContent = p.recibo_numero ? `Recibo nº ${nRecibo(p.recibo_numero)} deste contrato` : `Será o recibo nº ${nRecibo(p.contratos.proximo_recibo)} deste contrato`;
+    $('rb-contrato').textContent = p.contratos.descricao;
+    $('dlg-recibo').showModal();
   }
-  async function montarRecibo(p, numero) {
+  function padraoRecibo(p) {
+    const ct = p.contratos, cl = ct.clientes;
+    // texto do serviço: o último usado neste contrato; senão o padrão dos dados do recibo
+    const outro = (ct.parcelas || []).find((x) => x.id !== p.id && x.recibo_dados?.servico);
+    const maxN = Math.max(0, ...(ct.parcelas || []).map((x) => x.numero || 0));
+    const proc = ct.processo_id ? processos.find((x) => x.id === ct.processo_id) : null;
+    return {
+      pagador: cl.nome, pagador_doc: cl.documento ? fmtDoc(cl.documento) : '', valor: Number(p.valor_pago),
+      servico: outro?.recibo_dados.servico ?? (emitente.servico_padrao || 'honorários advocatícios'),
+      referente: `${ct.descricao}${maxN > 1 ? `, parcela ${p.numero}/${maxN}` : ''}${p.descricao ? ' (' + p.descricao + ')' : ''}${proc ? `, processo nº ${proc.numero}` : ''}`,
+      pagamento: `Pagamento recebido por ${FORMAS[p.forma] || 'meio não informado'} em ${brDate(p.pago_em)}.`,
+      quitacao: 'Para clareza, firmo o presente recibo, dando plena quitação do valor acima.',
+      cidade: emitente.cidade || '', data: p.pago_em,
+      emitente_nome: emitente.nome || '', emitente_registro: emitente.oab || '', emitente_doc: emitente.documento ? fmtDoc(digitos(emitente.documento)) : '',
+      emitente_endereco: emitente.endereco || '',
+    };
+  }
+  const RB = { pagador: 'rb-pagador', pagador_doc: 'rb-pagador-doc', servico: 'rb-servico', referente: 'rb-referente', pagamento: 'rb-pagamento',
+    quitacao: 'rb-quitacao', cidade: 'rb-cidade', data: 'rb-data', emitente_nome: 'rb-em-nome', emitente_registro: 'rb-em-reg',
+    emitente_doc: 'rb-em-doc', emitente_endereco: 'rb-em-end' };
+  function preencherRecibo(d) {
+    for (const [k, id] of Object.entries(RB)) $(id).value = d[k] ?? '';
+    $('rb-valor').value = valorTxt(d.valor);
+    previaRecibo();
+  }
+  function lerRecibo() {
+    const d = {};
+    for (const [k, id] of Object.entries(RB)) d[k] = $(id).value.trim();
+    d.valor = lerValor($('rb-valor').value);
+    return d;
+  }
+  function docTexto(t) {
+    const dg = digitos(t);
+    if (dg.length === 11 || dg.length === 14) return `, inscrito(a) no ${docRotulo(dg)} sob o nº ${fmtDoc(dg)}`;
+    return t ? `, ${t}` : '';
+  }
+  const textoPrincipal = (d) => `Recebi de ${d.pagador}${docTexto(d.pagador_doc)}, a importância de ${moeda(d.valor)} (${extenso(d.valor)}), ` +
+    `referente a ${[d.servico, d.referente].filter(Boolean).join(' — ')}.`;
+  function previaRecibo() {
+    const d = lerRecibo();
+    $('rb-prev').textContent = d.valor > 0 && d.pagador ? textoPrincipal(d) : 'Preencha quem pagou e o valor.';
+  }
+  $('form-recibo').addEventListener('input', previaRecibo);
+  $('rb-padrao').addEventListener('click', () => { if (confirm('Voltar todos os campos para o texto padrão?')) preencherRecibo(padraoRecibo(rbParc)); });
+  $('form-recibo').addEventListener('submit', async (ev) => {
+    if (ev.submitter?.value !== 'ok') return;
+    ev.preventDefault();
+    const d = lerRecibo();
+    if (!d.pagador || !(d.valor > 0) || !d.emitente_nome) return toast('Preencha quem pagou, o valor e quem recebeu.', true);
+    let numero = rbParc.recibo_numero;
+    if (!numero) {
+      const { data: n, error } = await sb.rpc('proximo_recibo_contrato', { p_contrato: rbParc.contratos.id });
+      if (error) return fail(error);
+      numero = n;
+    }
+    const { error } = await sb.from('parcelas').update({ recibo_numero: numero, recibo_dados: d }).eq('id', rbParc.id);
+    if (error) return fail(error);
+    try {
+      const bytes = await montarRecibo(d, numero, rbParc.contratos.descricao);
+      const slug = (t) => String(t).normalize('NFD').replace(/[^\w ]/g, '').trim().replace(/\s+/g, '_').toLowerCase().slice(0, 40);
+      Export.download(new Blob([bytes], { type: 'application/pdf' }), `recibo_${nRecibo(numero)}_${slug(d.pagador)}_${slug(rbParc.contratos.descricao)}.pdf`);
+      $('dlg-recibo').close(); toast(`Recibo nº ${nRecibo(numero)} gerado.`);
+      atualizar();
+    } catch (e) { fail(e); }
+  });
+  async function montarRecibo(d, numero, contrato) {
     const { PDFDocument, StandardFonts, rgb } = await carregarPdfLib();
     const doc = await PDFDocument.create();
-    doc.setTitle(`Recibo nº ${numero}`); doc.setProducer('mantini.ia.br'); doc.setCreator('mantini.ia.br — Clientes');
+    doc.setTitle(`Recibo nº ${nRecibo(numero)}`); doc.setProducer('mantini.ia.br'); doc.setCreator('mantini.ia.br — Clientes');
     const pg = doc.addPage([595.28, 841.89]);
     const f = await doc.embedFont(StandardFonts.Helvetica), fb = await doc.embedFont(StandardFonts.HelveticaBold);
     const preto = rgb(0.1, 0.11, 0.13), cinza = rgb(0.42, 0.45, 0.5), verm = rgb(0.9, 0.22, 0.27);
     const M = 64, L = 595.28 - 2 * M;
+    // a fonte padrão do PDF só tem os caracteres do português (Windows-1252)
+    const seguro = (t) => String(t ?? '').replace(/[^\x09\x0a\x0d\x20-\x7e\xa0-\xff–—‘’“”•…]/g, '');
     let y = 770;
-    const texto = (t, x, yy, o = {}) => pg.drawText(t, { x, y: yy, size: o.size || 11, font: o.font || f, color: o.color || preto });
+    const texto = (t, x, yy, o = {}) => pg.drawText(seguro(t), { x, y: yy, size: o.size || 11, font: o.font || f, color: o.color || preto });
     function paragrafo(t, size = 12.5, lh = 20, font = f) {
-      const palavras = t.split(' '); let linha = '';
-      for (const w of palavras) {
-        const tent = linha ? linha + ' ' + w : w;
-        if (font.widthOfTextAtSize(tent, size) > L && linha) { texto(linha, M, y, { size, font }); y -= lh; linha = w; } else linha = tent;
+      for (const par of seguro(t).split('\n')) {
+        let linha = '';
+        for (const w of par.split(' ')) {
+          const tent = linha ? linha + ' ' + w : w;
+          if (font.widthOfTextAtSize(tent, size) > L && linha) { texto(linha, M, y, { size, font }); y -= lh; linha = w; } else linha = tent;
+        }
+        if (linha) { texto(linha, M, y, { size, font }); y -= lh; }
       }
-      if (linha) { texto(linha, M, y, { size, font }); y -= lh; }
     }
     // cabeçalho
     texto('RECIBO', M, y, { size: 26, font: fb });
-    const nTxt = `Nº ${String(numero).padStart(4, '0')}`;
+    const nTxt = `Nº ${nRecibo(numero)}`;
     texto(nTxt, M + L - fb.widthOfTextAtSize(nTxt, 12), y + 10, { size: 12, font: fb, color: cinza });
-    const vTxt = moeda(p.valor_pago);
+    const vTxt = moeda(d.valor);
     pg.drawRectangle({ x: M + L - 170, y: y - 30, width: 170, height: 30, borderColor: verm, borderWidth: 1.5 });
     texto(vTxt, M + L - 85 - fb.widthOfTextAtSize(vTxt, 15) / 2, y - 20, { size: 15, font: fb });
     y -= 60;
     pg.drawLine({ start: { x: M, y }, end: { x: M + L, y }, thickness: 0.8, color: rgb(0.85, 0.86, 0.88) });
     y -= 34;
-    const cl = p.contratos.clientes, ct = p.contratos;
-    const parcelasCt = (ct.parcelas || []).slice().sort((a, b) => a.vencimento.localeCompare(b.vencimento) || a.numero - b.numero);
-    const maxN = Math.max(0, ...parcelasCt.map((x) => x.numero || 0));
-    const refParc = maxN > 1 ? `, parcela ${p.numero}/${maxN}` : '';
-    const proc = ct.processo_id ? processos.find((x) => x.id === ct.processo_id) : null;
-    const docCli = cl.documento ? `, inscrito(a) no ${docRotulo(cl.documento)} sob o nº ${fmtDoc(cl.documento)}` : '';
-    paragrafo(`Recebi de ${cl.nome}${docCli}, a importância de ${moeda(p.valor_pago)} (${extenso(p.valor_pago)}), ` +
-      `referente a honorários advocatícios — ${ct.descricao}${refParc}${p.descricao ? ' (' + p.descricao + ')' : ''}${proc ? `, processo nº ${proc.numero}` : ''}.`);
-    y -= 6;
-    paragrafo(`Pagamento recebido por ${FORMAS[p.forma] || 'meio não informado'} em ${brDate(p.pago_em)}.`);
-    paragrafo('Para clareza, firmo o presente recibo, dando plena quitação do valor acima.');
+    paragrafo(textoPrincipal(d));
+    if (d.pagamento) { y -= 6; paragrafo(d.pagamento); }
+    if (d.quitacao) paragrafo(d.quitacao);
     y -= 26;
-    const meses = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
-    const [a, m, d] = p.pago_em.split('-').map(Number);
-    const dataTxt = `${emitente.cidade ? emitente.cidade + ', ' : ''}${d} de ${meses[m - 1]} de ${a}.`;
-    texto(dataTxt, M + L - f.widthOfTextAtSize(dataTxt, 12), y, { size: 12 });
+    let dataTxt = '';
+    if (d.data) { const [a, m, dd] = d.data.split('-').map(Number); dataTxt = `${d.cidade ? d.cidade + ', ' : ''}${dd} de ${MESES[m - 1]} de ${a}.`; }
+    else if (d.cidade) dataTxt = d.cidade + '.';
+    if (dataTxt) texto(dataTxt, M + L - f.widthOfTextAtSize(seguro(dataTxt), 12), y, { size: 12 });
     y -= 90;
     const cx = M + L / 2;
     pg.drawLine({ start: { x: cx - 150, y }, end: { x: cx + 150, y }, thickness: 0.8, color: preto });
     y -= 16;
-    const centro = (t, o) => texto(t, cx - (o?.font || f).widthOfTextAtSize(t, o?.size || 11) / 2, y, o);
-    centro(emitente.nome, { font: fb, size: 12 }); y -= 15;
-    if (emitente.oab) { centro(emitente.oab, { color: cinza }); y -= 14; }
-    if (emitente.documento) { const dd = digitos(emitente.documento); centro(`${docRotulo(dd)} ${fmtDoc(dd)}`, { color: cinza }); y -= 14; }
-    if (emitente.endereco) { centro(emitente.endereco, { color: cinza, size: 10 }); y -= 14; }
-    texto(`Recibo nº ${String(numero).padStart(4, '0')} · emitido em ${new Date().toLocaleDateString('pt-BR')}`, M, 50, { size: 8.5, color: cinza });
+    const centro = (t, o) => texto(t, cx - (o?.font || f).widthOfTextAtSize(seguro(t), o?.size || 11) / 2, y, o);
+    centro(d.emitente_nome, { font: fb, size: 12 }); y -= 15;
+    if (d.emitente_registro) { centro(d.emitente_registro, { color: cinza }); y -= 14; }
+    if (d.emitente_doc) { const dg = digitos(d.emitente_doc); centro(dg.length === 11 || dg.length === 14 ? `${docRotulo(dg)} ${fmtDoc(dg)}` : d.emitente_doc, { color: cinza }); y -= 14; }
+    if (d.emitente_endereco) { centro(d.emitente_endereco, { color: cinza, size: 10 }); y -= 14; }
+    texto(`Recibo nº ${nRecibo(numero)} — ${contrato} · emitido em ${new Date().toLocaleDateString('pt-BR')}`, M, 50, { size: 8.5, color: cinza });
     return doc.save();
   }
 
@@ -704,6 +763,7 @@
     $('em-nome').value = emitente?.nome || ''; $('em-doc').value = fmtDoc(digitos(emitente?.documento));
     $('em-oab').value = emitente?.oab || ''; $('em-end').value = emitente?.endereco || '';
     $('em-cidade').value = emitente?.cidade || ''; $('em-pix').value = emitente?.chave_pix || '';
+    $('em-servico').value = emitente?.servico_padrao || '';
     $('dlg-emitente').showModal();
   }
   $('btn-emitente').addEventListener('click', abrirEmitente);
@@ -711,7 +771,8 @@
     if (ev.submitter?.value !== 'ok') { reciboPendente = null; return; }
     ev.preventDefault();
     const row = { nome: $('em-nome').value.trim(), documento: digitos($('em-doc').value) || null, oab: $('em-oab').value.trim() || null,
-      endereco: $('em-end').value.trim() || null, cidade: $('em-cidade').value.trim() || null, chave_pix: $('em-pix').value.trim() || null, updated_at: new Date().toISOString() };
+      endereco: $('em-end').value.trim() || null, cidade: $('em-cidade').value.trim() || null, chave_pix: $('em-pix').value.trim() || null,
+      servico_padrao: $('em-servico').value.trim() || null, updated_at: new Date().toISOString() };
     const { data, error } = await sb.from('emitente').upsert(row, { onConflict: 'user_id' }).select().single();
     if (error) return fail(error);
     emitente = data; $('dlg-emitente').close(); toast('Dados do recibo salvos.');
