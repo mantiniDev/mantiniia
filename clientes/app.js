@@ -1,4 +1,4 @@
-// Clientes — fichas de clientes, contratos de honorários, parcelas, recebimentos e recibo em PDF.
+// Clientes — fichas de clientes, contratos (honorários e outros), parcelas, recebimentos e recibo em PDF.
 // Dados no Supabase (tabelas clientes / clientes_processos / contratos / parcelas / emitente, protegidas por RLS).
 (function () {
   'use strict';
@@ -146,7 +146,7 @@
   });
 
   // parcelas com contrato e cliente (para painel e aba Parcelas)
-  const SEL_PARC = '*, contratos!inner(id, descricao, cliente_id, status, clientes!inner(id, nome, telefone))';
+  const SEL_PARC = '*, contratos!inner(id, descricao, categoria, cliente_id, status, clientes!inner(id, nome, telefone))';
   function linhaParcela(p, comCliente = true) {
     const ct = p.contratos, cl = ct?.clientes;
     return `<tr data-parc="${p.id}">
@@ -285,7 +285,9 @@
   function cobrar(p) {
     const cl = p.contratos?.clientes || atual;
     const n = diasAte(p.vencimento);
-    const msg = `Olá, ${cl.nome.split(' ')[0]}! Tudo bem? Passando para lembrar da parcela de honorários de ${moeda(p.valor)}` +
+    const cat = p.contratos?.categoria || contratos.find((c) => c.id === p.contrato_id)?.categoria || '';
+    const oQue = !cat || /honor/i.test(cat) ? 'da parcela de honorários' : 'da parcela';
+    const msg = `Olá, ${cl.nome.split(' ')[0]}! Tudo bem? Passando para lembrar ${oQue} de ${moeda(p.valor)}` +
       ` (${p.contratos?.descricao || contratos.find((c) => c.id === p.contrato_id)?.descricao || 'contrato'})` +
       (n < 0 ? `, vencida em ${brDate(p.vencimento)}.` : n === 0 ? ', que vence hoje.' : `, com vencimento em ${brDate(p.vencimento)}.`) +
       (emitente?.chave_pix ? ` Chave PIX: ${emitente.chave_pix}.` : '') + ' Obrigado!';
@@ -341,7 +343,7 @@
           <td class="actions">${acoesParcela(p, atual)}${p.pago_em ? '' : ' <button data-pact="editar">Editar</button> <button class="danger" data-pact="del">×</button>'}</td></tr>`).join('');
       return `<div class="contrato ${k.status}" data-contrato="${k.id}">
         <div class="head">
-          <div><h3>${esc(k.descricao)} <span class="pill">${TIPOS[k.tipo]}</span>${k.status === 'encerrado' ? ' <span class="pill">encerrado</span>' : ''}</h3>
+          <div><h3>${esc(k.descricao)} <span class="pill tipo-ct">${esc(k.categoria)}</span> <span class="pill">${TIPOS[k.tipo]}</span>${k.status === 'encerrado' ? ' <span class="pill">encerrado</span>' : ''}</h3>
             <div class="meta">Contrato de ${brDate(k.data_contrato)}${k.valor_total != null ? ' · ' + moeda(k.valor_total) : ''}${k.percentual_exito != null ? ` · êxito ${String(k.percentual_exito).replace('.', ',')}%` : ''}${k.processo_id ? ` · processo <a href="../processos/#/p/${k.processo_id}">${esc(procTxt(k.processo_id) || 'abrir')}</a>` : ''}${k.observacoes ? ' · ' + esc(k.observacoes) : ''}</div></div>
           <div class="row"><button class="mini" data-cact="parcela">+ Parcela</button><button class="mini" data-cact="editar">Editar</button><button class="mini danger" data-cact="del">×</button></div>
         </div>
@@ -366,7 +368,7 @@
       const a = k.contratos_anexos.find((x) => x.id === ax.closest('[data-anexo]').dataset.anexo);
       return acaoAnexo(ax.dataset.aact, a);
     }
-    if (ev.target.closest('button[data-pact]')) return acaoParcela(ev, () => contratos.flatMap((k) => k.parcelas.map((p) => ({ ...p, contratos: { descricao: k.descricao, clientes: atual } }))));
+    if (ev.target.closest('button[data-pact]')) return acaoParcela(ev, () => contratos.flatMap((k) => k.parcelas.map((p) => ({ ...p, contratos: { descricao: k.descricao, categoria: k.categoria, clientes: atual } }))));
     const b = ev.target.closest('button[data-cact]'); if (!b) return;
     const k = contratos.find((x) => x.id === b.closest('[data-contrato]').dataset.contrato);
     if (b.dataset.cact === 'editar') return abrirContrato(k);
@@ -452,6 +454,7 @@
   function abrirContrato(k) {
     editCt = k;
     $('ct-titulo').textContent = k ? 'Editar contrato' : 'Novo contrato';
+    $('ct-cat').value = k?.categoria || 'Honorários advocatícios';
     $('ct-desc').value = k?.descricao || ''; $('ct-tipo').value = k?.tipo || 'fixo'; $('ct-data').value = k?.data_contrato || hoje();
     $('ct-proc').value = k?.processo_id ? procTxt(k.processo_id) : (vinculos.length === 1 ? procTxt(vinculos[0]) : '');
     $('ct-proc-wrap').classList.toggle('hidden', !temProcessos);
@@ -499,7 +502,7 @@
     const plano = editCt ? [] : planoParcelas();
     if (tipo === 'mensal' && plano.length) valor = Math.round(plano.reduce((t, p) => t + p.valor, 0) * 100) / 100;
     if (!editCt && tipo !== 'exito' && !plano.length && !confirm('Nenhuma parcela será gerada (falta valor ou vencimento). Salvar assim mesmo?')) return;
-    const row = { descricao: $('ct-desc').value.trim(), tipo, data_contrato: $('ct-data').value, processo_id: proc?.id || null,
+    const row = { categoria: $('ct-cat').value.trim() || 'Honorários advocatícios', descricao: $('ct-desc').value.trim(), tipo, data_contrato: $('ct-data').value, processo_id: proc?.id || null,
       valor_total: valor ?? (editCt?.tipo === 'mensal' ? editCt.valor_total : null), percentual_exito: perc, observacoes: $('ct-obs').value.trim() || null };
     if (editCt) row.status = $('ct-encerrado').checked ? 'encerrado' : 'ativo';
     const { data, error } = editCt ? await sb.from('contratos').update(row).eq('id', editCt.id).select().single()
@@ -631,7 +634,7 @@
   async function gerarRecibo(parcelaId) {
     if (!emitente?.nome) { reciboPendente = parcelaId; toast('Preencha os dados do recibo (uma vez só).'); return abrirEmitente(); }
     const { data: p, error } = await sb.from('parcelas')
-      .select('*, contratos(id, descricao, processo_id, proximo_recibo, parcelas(id, vencimento, numero, recibo_dados), clientes(nome, documento, tipo))').eq('id', parcelaId).single();
+      .select('*, contratos(id, descricao, categoria, processo_id, proximo_recibo, parcelas(id, vencimento, numero, recibo_dados), clientes(nome, documento, tipo))').eq('id', parcelaId).single();
     if (error) return fail(error);
     if (!p.pago_em) return toast('Registre o recebimento antes de gerar o recibo.', true);
     rbParc = p;
@@ -650,7 +653,9 @@
     const proc = ct.processo_id ? processos.find((x) => x.id === ct.processo_id) : null;
     return {
       pagador: cl.nome, pagador_doc: cl.documento ? fmtDoc(cl.documento) : '', valor: Number(p.valor_pago),
-      servico: outro?.recibo_dados.servico ?? (emitente.servico_padrao || 'honorários advocatícios'),
+      // texto do serviço: o último usado neste contrato; senão o tipo do contrato (honorários → padrão dos Dados do recibo)
+      servico: outro?.recibo_dados.servico ?? (ct.categoria && !/^honor/i.test(ct.categoria)
+        ? ct.categoria.charAt(0).toLowerCase() + ct.categoria.slice(1) : (emitente.servico_padrao || 'honorários advocatícios')),
       referente: `${ct.descricao}${maxN > 1 ? `, parcela ${p.numero}/${maxN}` : ''}${p.descricao ? ' (' + p.descricao + ')' : ''}${proc ? `, processo nº ${proc.numero}` : ''}`,
       pagamento: `Pagamento recebido por ${FORMAS[p.forma] || 'meio não informado'} em ${brDate(p.pago_em)}.`,
       quitacao: 'Para clareza, firmo o presente recibo, dando plena quitação do valor acima.',

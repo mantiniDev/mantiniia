@@ -109,7 +109,8 @@ Dados no Supabase (tabelas `processos`, `andamentos`, `documentos`, `audiencias`
 
 - **Clientes:** ficha (PF/PJ) com CPF/CNPJ validado pelos dígitos verificadores, e-mail, telefone (botão WhatsApp),
   endereço e observações; vínculo com os processos do sistema Processos (para quem tem acesso aos dois).
-- **Contratos de honorários:** valor fixo (à vista ou parcelado), mensal, êxito (%) ou fixo + êxito. As parcelas
+- **Contratos:** tipo do contrato (padrão "Honorários advocatícios"; também prestação de serviços, consultoria,
+  desenvolvimento de sistemas, locação ou texto livre) e forma de cobrança: valor fixo (à vista ou parcelado), mensal, êxito (%) ou fixo + êxito. As parcelas
   são geradas na hora (o centavo que sobra vai na última; dia 31 vira o último dia dos meses mais curtos).
 - **Anexos do contrato:** contrato assinado, aditivos etc. (PDF, Word ou foto, até 50 MB cada), no cadastro do
   contrato, pelo botão "Anexar" ou arrastando o arquivo para o cartão. Bucket **privado** `contratos`
