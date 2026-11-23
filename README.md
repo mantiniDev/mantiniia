@@ -6,7 +6,7 @@ Produção de sistemas e conteúdos digitais — mostruário dos projetos, publi
   em cartões com a imagem oficial de cada um (`assets/projetos/`).
 - **Ferramentas sob medida** (público): apresenta o serviço de ferramentas internas para qualquer ramo, sem exemplos,
   com contato por WhatsApp e e-mail.
-- **Ferramentas internas** (só aparecem com login): in_clock, Processos e Clientes. Ficam num `<template id="tpl-ferramentas">`
+- **Ferramentas internas** (só aparecem com login): in_clock, Processos, Clientes e Kit LGPD. Ficam num `<template id="tpl-ferramentas">`
   em `index.html`, que só é montado na página depois do login.
 
 Tudo é **HTML + CSS + JavaScript puro**, sem build. O acesso às ferramentas exige **login (e-mail e senha)**,
@@ -25,6 +25,7 @@ assets/agenda.js    audiências: contador de dias, notificações e arquivo de a
 assets/icon.svg     símbolo (logo) — também icon-512.png
 assets/sistemas/    ícones dos sistemas (emblema padrão + símbolo central)
 clientes/           sistema Clientes (clientes, contratos de honorários, parcelas, recibo em PDF)
+lgpd/               Kit LGPD (inventário das operações de tratamento por empresa; catalogo.js = bases legais e modelos)
 assets/icon.svg     emblema (favicon, topo); logo-quadrado.svg = como o original; logo.svg = emblema + nome
 assets/logo-antigo.jpg  logo original (referência); PNG: icon-512/192 (app, redes), favicon-32, emblema-512
 ferramentas/gerar_icones.py  gera todos os SVG do logo e dos sistemas; exportar_png.js gera os PNG
@@ -123,6 +124,25 @@ Dados no Supabase (tabelas `processos`, `andamentos`, `documentos`, `audiencias`
 
 Tabelas `clientes`, `clientes_processos`, `contratos`, `contratos_anexos`, `parcelas` e `emitente`, com RLS (dono + acesso ao sistema
 "clientes"); gatilho confere que vínculos, contratos e parcelas apontam para registros do mesmo usuário.
+
+### Kit LGPD (`/lgpd/`)
+
+Para consultoria: cada **empresa atendida** tem o seu inventário das operações de tratamento (ROPA — LGPD, art. 37).
+
+- **Empresa:** razão social, CNPJ validado, setor, endereço e encarregado (DPO, art. 41); pode ser puxada do sistema
+  Clientes (pessoas jurídicas), para quem tem acesso aos dois.
+- **Operação de tratamento:** área, responsável, papel (controladora/operadora), finalidade, hipótese legal (art. 7º
+  ou art. 11) com justificativa, titulares, crianças e adolescentes (art. 14), dados pessoais, dados sensíveis (art. 5º,
+  II), volume, origem, formato e sistemas, compartilhamento, operadores, transferência internacional (art. 33),
+  retenção e descarte, medidas de segurança (art. 46), risco e revisão.
+- **Ajudas:** 10 modelos prontos (folha, saúde ocupacional, recrutamento, clientes, faturamento, fornecedores, câmeras,
+  portaria, site/cookies, marketing); indicador de preenchimento; pontos de atenção (dado sensível com base do art. 7º,
+  legítimo interesse → LIA, consentimento, crianças, transferência sem mecanismo, RIPD quando o risco é alto) e risco
+  sugerido. Os modelos e as listas ficam em `lgpd/catalogo.js`.
+- **Saída:** planilha .xlsx do inventário (uma linha por operação) e relatório em PDF (capa com resumo + uma página
+  por operação).
+
+Tabelas `organizacoes` e `tratamentos`, com RLS (dono + acesso ao sistema "lgpd") e gatilho que confere o dono.
 
 ## E-mail diário
 
