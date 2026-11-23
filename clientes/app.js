@@ -636,7 +636,9 @@
     if (!p.pago_em) return toast('Registre o recebimento antes de gerar o recibo.', true);
     rbParc = p;
     preencherRecibo({ ...padraoRecibo(p), ...(p.recibo_dados || {}) });
-    $('rb-numero').textContent = p.recibo_numero ? `Recibo nº ${nRecibo(p.recibo_numero)} deste contrato` : `Será o recibo nº ${nRecibo(p.contratos.proximo_recibo)} deste contrato`;
+    $('rb-numero').textContent = p.recibo_numero ? 'Recibo já emitido' : 'Recibo novo';
+    $('rb-num').value = p.recibo_numero || p.contratos.proximo_recibo;
+    $('rb-num-dica').textContent = p.recibo_numero ? '' : `sugerido: próximo deste contrato (${nRecibo(p.contratos.proximo_recibo)})`;
     $('rb-contrato').textContent = p.contratos.descricao;
     $('dlg-recibo').showModal();
   }
@@ -689,11 +691,21 @@
     ev.preventDefault();
     const d = lerRecibo();
     if (!d.pagador || !(d.valor > 0) || !d.emitente_nome) return toast('Preencha quem pagou, o valor e quem recebeu.', true);
-    let numero = rbParc.recibo_numero;
-    if (!numero) {
-      const { data: n, error } = await sb.rpc('proximo_recibo_contrato', { p_contrato: rbParc.contratos.id });
+    // número: o sugerido segue a sequência do contrato; dá para trocar (ex.: continuar uma numeração antiga)
+    const escolhido = Math.round(Number($('rb-num').value));
+    if (!(escolhido >= 1)) return toast('Informe o número do recibo (1 ou mais).', true);
+    const ct = rbParc.contratos;
+    let numero = escolhido;
+    if (!rbParc.recibo_numero && escolhido === ct.proximo_recibo) {
+      const { data: n, error } = await sb.rpc('proximo_recibo_contrato', { p_contrato: ct.id });   // reserva o número
       if (error) return fail(error);
       numero = n;
+    } else if (escolhido !== rbParc.recibo_numero) {
+      const { data: igual } = await sb.from('parcelas').select('id').eq('contrato_id', ct.id).eq('recibo_numero', escolhido).neq('id', rbParc.id);
+      if (igual?.length && !confirm(`Já existe um recibo nº ${nRecibo(escolhido)} neste contrato. Usar o mesmo número assim mesmo?`)) return;
+      // a sequência do contrato continua depois do maior número usado
+      const { data: k } = await sb.from('contratos').select('proximo_recibo').eq('id', ct.id).single();
+      if (k && escolhido >= k.proximo_recibo) await sb.from('contratos').update({ proximo_recibo: escolhido + 1 }).eq('id', ct.id);
     }
     const { error } = await sb.from('parcelas').update({ recibo_numero: numero, recibo_dados: d }).eq('id', rbParc.id);
     if (error) return fail(error);

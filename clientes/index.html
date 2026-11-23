@@ -263,6 +263,10 @@
       <h2 style="margin-top:0">Recibo</h2>
       <p class="small muted" style="margin-top:-6px"><b id="rb-numero"></b> · <span id="rb-contrato"></span></p>
       <div class="stack">
+        <div class="row" style="align-items:end">
+          <label class="field" style="width:130px">Nº do recibo<input id="rb-num" type="number" min="1" step="1" required></label>
+          <span class="small muted" id="rb-num-dica" style="padding-bottom:8px"></span>
+        </div>
         <div class="row">
           <label class="field grow">Recebi de<input id="rb-pagador" required></label>
           <label class="field">CPF / CNPJ<input id="rb-pagador-doc" placeholder="opcional"></label>
@@ -323,6 +327,6 @@
   <script src="../assets/config.js"></script>
   <script src="../assets/auth.js?v=20261115a" data-root="../" data-protect data-sistema="clientes"></script>
   <script src="../assets/export.js"></script>
-  <script src="app.js?v=20261123b"></script>
+  <script src="app.js?v=20261123c"></script>
 </body>
 </html>

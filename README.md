@@ -119,7 +119,7 @@ Dados no Supabase (tabelas `processos`, `andamentos`, `documentos`, `audiencias`
 - **Recibo em PDF** (pdf-lib, gerado no navegador): antes de gerar abre uma tela com tudo editável (quem pagou,
   CPF/CNPJ, valor, "referente a", pagamento, quitação, cidade/data e quem assina), com prévia do texto. O que for
   editado fica guardado na parcela (`recibo_dados`) e a reimpressão sai igual. **Numeração própria de cada contrato**
-  (001, 002…), via `proximo_recibo_contrato()`. O texto do serviço ("honorários advocatícios", "consultoria"…) vem dos
+  (001, 002…), via `proximo_recibo_contrato()`; o número pode ser trocado no recibo (a sequência continua depois do maior). O texto do serviço ("honorários advocatícios", "consultoria"…) vem dos
   ⚙️ Dados do recibo e cada contrato passa a usar o último texto editado nele.
 - **Cobrar:** abre o WhatsApp do cliente com a mensagem pronta (valor, vencimento e chave PIX).
 - **Painel:** vencidas, a receber no mês, recebido no mês e no ano; aba Parcelas com filtros e exportação .xlsx.
