@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Juntar vídeos — mantini.ia.br</title>
+  <link rel="stylesheet" href="../assets/base.css?v=20261116a">
+  <link rel="icon" href="../assets/sistemas/videos.svg?v=20261125">
+  <style>
+    .drop { display: block; cursor: pointer; border: 2px dashed var(--line); border-radius: var(--radius); padding: 26px; text-align: center; color: var(--muted); }
+    .drop.over { border-color: var(--accent); background: var(--accent-soft); }
+    .drop b { color: var(--text); font-size: 17px; }
+    .tabela-wrap { overflow-x: auto; }
+    td.num, th.num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+    td.acts { white-space: nowrap; text-align: right; }
+    td.acts button { padding: 3px 9px; font-size: 12px; }
+    tr.arrastando { opacity: .4; }
+    tr[draggable] td:first-child { cursor: grab; }
+    .thumb { width: 96px; height: 54px; object-fit: cover; border-radius: 6px; background: #000; display: block; }
+    .erro-linha td { color: var(--danger); }
+    .opcoes { display: flex; flex-wrap: wrap; gap: 12px; align-items: end; }
+    .progresso { margin-top: 12px; }
+    progress { width: 100%; height: 14px; }
+    .stats { display: flex; flex-wrap: wrap; gap: 8px 22px; font-size: 14px; margin-top: 6px; font-variant-numeric: tabular-nums; }
+    .stats b { font-size: 16px; }
+    .aviso { border-left: 3px solid #d97706; padding: 8px 12px; background: var(--card); border-radius: 6px; margin-bottom: 12px; font-size: 14px; }
+    .aviso.erro { border-left-color: var(--danger); }
+    .aviso.ok { border-left-color: #16a34a; }
+    .resumo { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin: 10px 0; }
+    .resumo div span { display: block; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .03em; }
+    .resumo div b { font-size: 18px; }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="../"><img src="../assets/icon.svg?v=20261121" width="28" height="28" alt=""><span>mantini<span class="ia">.ia</span><span class="tld">.br</span></span></a><span class="sep">/</span><a href="./" class="sys-name"><img src="../assets/sistemas/videos.svg?v=20261125" width="28" height="28" alt="">Juntar vídeos</a>
+    <span class="spacer"></span>
+    <span id="user-slot"></span>
+  </header>
+
+  <main>
+    <div id="sem-suporte" class="aviso erro hidden"></div>
+
+    <div class="card">
+      <h1 style="margin:0 0 4px;font-size:22px">Juntar vídeos da câmera e converter para MP4</h1>
+      <p class="muted" style="margin:0 0 14px">Junta vários arquivos .avi da câmera de ação num único vídeo MP4 (H.264), pronto para o YouTube.
+        Tudo acontece <b>no seu computador</b>: os vídeos não são enviados para lugar nenhum.</p>
+      <label class="drop" id="drop">
+        <input type="file" id="arquivos" accept=".avi,video/x-msvideo,video/avi" multiple hidden>
+        <b>Arraste aqui os vídeos .avi</b><br>ou clique para escolher (pode selecionar vários de uma vez)
+      </label>
+    </div>
+
+    <div class="card hidden" id="card-lista">
+      <div class="opcoes" style="justify-content:space-between;margin-bottom:10px">
+        <h2 style="margin:0">Vídeos, na ordem em que serão juntados</h2>
+        <div class="row">
+          <button id="ordenar-nome">Ordenar por nome</button>
+          <button id="limpar">Limpar lista</button>
+        </div>
+      </div>
+      <p class="small muted" style="margin-top:0">Arraste as linhas (ou use ↑ ↓) para mudar a ordem.</p>
+      <div id="checagem"></div>
+      <div class="tabela-wrap"><table>
+        <thead><tr><th></th><th>#</th><th>Arquivo</th><th class="num">Duração</th><th>Vídeo</th><th>Áudio</th><th class="num">Tamanho</th><th></th></tr></thead>
+        <tbody id="lista"></tbody>
+        <tfoot><tr><td></td><td></td><td><b>Total</b></td><td class="num"><b id="tot-dur"></b></td><td></td><td></td><td class="num"><b id="tot-tam"></b></td><td></td></tr></tfoot>
+      </table></div>
+    </div>
+
+    <div class="card hidden" id="card-converter">
+      <h2 style="margin-top:0">Converter</h2>
+      <div class="opcoes">
+        <label class="field">Qualidade
+          <select id="qualidade">
+            <option value="6">Menor arquivo (6 Mbps)</option>
+            <option value="10" selected>Recomendada para YouTube (10 Mbps)</option>
+            <option value="16">Alta (16 Mbps)</option>
+          </select>
+        </label>
+        <label class="field" style="min-width:280px;flex:1">Nome do arquivo final<input id="nome-saida"></label>
+        <button class="primary" id="converter">Juntar e converter</button>
+      </div>
+      <p class="small muted" id="estimativa" style="margin-bottom:0"></p>
+
+      <div class="progresso hidden" id="progresso">
+        <progress id="barra" max="1" value="0"></progress>
+        <div class="stats">
+          <span>Progresso <b id="st-pct">0%</b></span>
+          <span>Vídeo <b id="st-tempo">0:00</b> de <span id="st-total"></span></span>
+          <span>Velocidade <b id="st-vel">—</b></span>
+          <span>Falta cerca de <b id="st-eta">—</b></span>
+          <span class="muted" id="st-arquivo"></span>
+        </div>
+        <p class="small muted" style="margin:8px 0 0">Mantenha esta aba aberta até terminar. O arquivo vai sendo gravado direto na pasta escolhida.</p>
+        <div class="row" style="margin-top:10px"><button id="cancelar" class="danger">Cancelar</button></div>
+      </div>
+    </div>
+
+    <div class="card hidden" id="card-fim">
+      <h2 style="margin-top:0">✅ Vídeo pronto</h2>
+      <div class="resumo" id="resumo-fim"></div>
+      <p class="small muted" id="fim-txt"></p>
+      <div class="row"><a class="btn hidden" id="baixar">Baixar o MP4</a><a class="btn" href="https://studio.youtube.com/" target="_blank" rel="noopener">Abrir o YouTube Studio ↗</a></div>
+    </div>
+
+    <p class="small muted">Como funciona: cada quadro da câmera (MJPEG) é lido pelo navegador e recodificado em H.264 pelo
+      codificador de vídeo do computador (WebCodecs); o áudio vira AAC (ou Opus, se o navegador não tiver AAC).
+      Funciona no Chrome e no Edge para computador.</p>
+  </main>
+
+  <div id="toast" role="status" style="position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--text);color:var(--bg);padding:10px 16px;border-radius:10px;font-size:14px;display:none;z-index:10"></div>
+
+  <script src="../assets/vendor/supabase-2.119.0.js"></script>
+  <script src="../assets/config.js"></script>
+  <script src="../assets/auth.js?v=20261115a" data-root="../" data-protect></script>
+  <script src="../assets/vendor/mp4-muxer-5.2.2.js"></script>
+  <script src="avi.js?v=20261125b"></script>
+  <script src="app.js?v=20261125b"></script>
+</body>
+</html>

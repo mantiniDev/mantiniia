@@ -6,7 +6,7 @@ Produção de sistemas e conteúdos digitais — mostruário dos projetos, publi
   em cartões com a imagem oficial de cada um (`assets/projetos/`).
 - **Ferramentas sob medida** (público): apresenta o serviço de ferramentas internas para qualquer ramo, sem exemplos,
   com contato por WhatsApp e e-mail.
-- **Ferramentas internas** (só aparecem com login): in_clock, Processos, Clientes e Kit LGPD. Ficam num `<template id="tpl-ferramentas">`
+- **Ferramentas internas** (só aparecem com login): in_clock, Processos, Clientes, Kit LGPD e Juntar vídeos. Ficam num `<template id="tpl-ferramentas">`
   em `index.html`, que só é montado na página depois do login.
 
 Tudo é **HTML + CSS + JavaScript puro**, sem build. O acesso às ferramentas exige **login (e-mail e senha)**,
@@ -25,6 +25,7 @@ assets/agenda.js    audiências: contador de dias, notificações e arquivo de a
 assets/icon.svg     símbolo (logo) — também icon-512.png
 assets/sistemas/    ícones dos sistemas (emblema padrão + símbolo central)
 clientes/           sistema Clientes (clientes, contratos de honorários, parcelas, recibo em PDF)
+videos/             Juntar vídeos (AVI MJPEG da câmera de ação → um MP4 H.264, tudo no navegador)
 lgpd/               Kit LGPD (inventário das operações de tratamento por empresa; catalogo.js = bases legais e modelos)
 assets/icon.svg     emblema (favicon, topo); logo-quadrado.svg = como o original; logo.svg = emblema + nome
 assets/logo-antigo.jpg  logo original (referência); PNG: icon-512/192 (app, redes), favicon-32, emblema-512
@@ -147,6 +148,20 @@ Para consultoria: cada **empresa atendida** tem o seu inventário das operaçõe
   por operação).
 
 Tabelas `organizacoes` e `tratamentos`, com RLS (dono + acesso ao sistema "lgpd") e gatilho que confere o dono.
+
+### Juntar vídeos (`/videos/`)
+
+Junta vários .avi de câmera de ação (MJPEG + áudio PCM) num único MP4 (H.264 + AAC, ou Opus se o navegador não tiver
+AAC), pronto para o YouTube. **Nada é enviado ao servidor**: tudo roda no navegador (Chrome/Edge no computador).
+
+- `videos/avi.js` lê o AVI em blocos de 16 MB (não carrega o arquivo inteiro). Segue o índice `idx1`, como os players:
+  muitas câmeras gravam menos quadros e repetem entradas no índice para manter os 30 fps (sem isso o vídeo encurta e o
+  áudio sai de sincronia). Sem índice (ou em AVI OpenDML/AVIX), lê em sequência.
+- `videos/app.js`: confere se todos têm a mesma resolução, fps e áudio; decodifica os JPEG com `ImageDecoder`, codifica
+  com `VideoEncoder` (usa a aceleração do computador quando houver) e `AudioEncoder` (reamostra o áudio se preciso);
+  alinha o áudio ao vídeo no início de cada arquivo; monta o MP4 com **mp4-muxer** (MIT, `assets/vendor`) gravando
+  direto no arquivo escolhido (`showSaveFilePicker`), sem acumular na memória.
+- Só exige login (não usa o banco); qualquer conta vê a ferramenta.
 
 ## E-mail diário
 
