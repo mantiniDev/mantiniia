@@ -165,6 +165,9 @@ AAC), pronto para o YouTube. **Nada é enviado ao servidor**: tudo roda no naveg
   o espaço é reservado no começo —, sem edit lists, H.264 High progressivo, GOP de meia taxa de quadros (quadro-chave a
   cada 0,5 s), áudio AAC-LC 48 kHz estéreo (Opus 48 kHz se o navegador não tiver AAC). B-frames não são controláveis no
   WebCodecs.
+- Qualidade: 1080p (10 ou 20 Mbps), **1440p · 24 Mbps (padrão)** ou 4K · 45 Mbps. O aumento de resolução é feito na placa
+  de vídeo (OffscreenCanvas com suavização "high"); vale a pena porque o YouTube usa compressão bem melhor (VP9/AV1, mais
+  bitrate) para vídeos enviados em 1440p ou mais, inclusive para quem assiste em 1080p.
 - Só exige login (não usa o banco); qualquer conta vê a ferramenta.
 
 ## E-mail diário

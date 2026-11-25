@@ -73,14 +73,18 @@
       <div class="opcoes">
         <label class="field">Qualidade
           <select id="qualidade">
-            <option value="6">Menor arquivo (6 Mbps)</option>
-            <option value="10" selected>Recomendada para YouTube (10 Mbps)</option>
-            <option value="16">Alta (16 Mbps)</option>
+            <option value="1080:10">1080p · 10 Mbps — arquivo menor</option>
+            <option value="1080:20">1080p · 20 Mbps</option>
+            <option value="1440:24" selected>1440p · 24 Mbps — recomendado para o YouTube</option>
+            <option value="2160:45">4K · 45 Mbps — máximo (mais lento, arquivo grande)</option>
           </select>
         </label>
         <label class="field" style="min-width:280px;flex:1">Nome do arquivo final<input id="nome-saida"></label>
         <button class="primary" id="converter">Juntar e converter</button>
       </div>
+      <p class="small muted" style="margin:10px 0 0">💡 Por que 1440p se a câmera grava em 1080p? O YouTube recomprime todo vídeo e dá
+        <b>muito mais qualidade</b> (codec VP9/AV1 e mais bitrate) aos enviados em 1440p ou 4K — inclusive para quem assiste em 1080p.
+        Em vídeos com muito movimento, como os de câmera de ação, a diferença é grande.</p>
       <p class="small muted" id="estimativa" style="margin-bottom:0"></p>
 
       <div class="progresso hidden" id="progresso">
@@ -116,6 +120,6 @@
   <script src="../assets/auth.js?v=20261115a" data-root="../" data-protect></script>
   <script src="../assets/vendor/mp4-muxer-5.2.2.js"></script>
   <script src="avi.js?v=20261125b"></script>
-  <script src="app.js?v=20261125c"></script>
+  <script src="app.js?v=20261125d"></script>
 </body>
 </html>

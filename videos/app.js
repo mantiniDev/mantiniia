@@ -69,8 +69,9 @@
     if (!$('nome-saida').value && itens[0]) $('nome-saida').value = itens[0].file.name.replace(/\.avi$/i, '') + (itens.length > 1 ? '_juntado' : '') + '.mp4';
     const ok = conferir();
     $('converter').disabled = !ok || !temSuporte || rodando;
-    $('estimativa').textContent = dur ? `Duração total ${fmtDur(dur)}. O MP4 deve ficar com cerca de ${fmtTam(dur * (+$('qualidade').value * 1e6 + 128e3) / 8)}. ` +
-      'A conversão costuma levar de metade a uma vez a duração do vídeo, conforme o computador.' : '';
+    const ref = itens.find((i) => i.info)?.info, sd = ref ? saida(ref) : null;
+    $('estimativa').textContent = dur && sd ? `Duração total ${fmtDur(dur)}. Saída ${sd.w}×${sd.h}; o MP4 deve ficar com cerca de ${fmtTam(dur * (sd.bitrate + 192e3) / 8)}. ` +
+      (sd.h > 1440 ? 'Em 4K a conversão é bem mais lenta (pode levar algumas vezes a duração do vídeo).' : 'A conversão costuma levar de metade a uma vez a duração do vídeo, conforme o computador.') : '';
   }
   $('qualidade').addEventListener('change', render);
   $('lista').addEventListener('click', (ev) => {
@@ -101,8 +102,15 @@
 
   // ---------------- conversão ----------------
   let rodando = false, cancelado = false;
-  async function escolherCodecs(info, bitrate) {
-    const { largura: w, altura: h, fps } = info;
+  /** Resolução e bitrate de saída. Aumentar para 1440p/4K faz o YouTube usar uma compressão bem melhor. */
+  function saida(info) {
+    const [alt, mbps] = $('qualidade').value.split(':').map(Number);
+    const h = Math.max(info.altura, alt);                               // nunca reduz a resolução original
+    const w = Math.round(info.largura * h / info.altura / 2) * 2;
+    return { w, h, bitrate: mbps * 1e6, escala: h !== info.altura };
+  }
+  async function escolherCodecs(info, bitrate, w, h) {
+    const { fps } = info;
     const nivel = w * h > 2228224 ? '33' : w * h > 921600 ? '28' : '1f';      // 4K → 5.1, 1080p → 4.0, 720p → 3.1
     let video = null;
     for (const perfil of ['6400', '4d00', '4200']) {
@@ -152,9 +160,9 @@
     if (!conferir()) return;
     const lista = itens.filter((i) => i.info && !i.erro), ref = lista[0].info;
     const nome = ($('nome-saida').value.trim() || 'video.mp4').replace(/(\.mp4)?$/i, '.mp4');
-    const bitrate = +$('qualidade').value * 1e6;
+    const sd = saida(ref);
     let codecs;
-    try { codecs = await escolherCodecs(ref, bitrate); } catch (e) { return toast('Não dá para converter neste navegador: ' + e.message, true); }
+    try { codecs = await escolherCodecs(ref, sd.bitrate, sd.w, sd.h); } catch (e) { return toast('Não dá para converter neste navegador: ' + e.message, true); }
 
     // destino: grava direto num arquivo escolhido (Chrome/Edge); sem isso, monta na memória e baixa no fim
     let alvo, gravavel = null;
@@ -165,7 +173,7 @@
         alvo = new Mp4Muxer.FileSystemWritableFileStreamTarget(gravavel);
       } catch (e) { if (e.name !== 'AbortError') toast('Não foi possível criar o arquivo: ' + (e.message || e), true); return; }
     } else {
-      const total = lista.reduce((t, i) => t + i.info.duracao, 0) * bitrate / 8;
+      const total = lista.reduce((t, i) => t + i.info.duracao, 0) * sd.bitrate / 8;
       if (total > 1.5e9 && !confirm('Este navegador não grava direto no disco; o vídeo será montado na memória (pode faltar memória em vídeos longos). Continuar?')) return;
       alvo = new Mp4Muxer.ArrayBufferTarget();
     }
@@ -176,7 +184,7 @@
       expectedAudioChunks: codecs.audio ? Math.ceil((totalQ / ref.fps + lista.length + 2) * codecs.audio.cfg.sampleRate / 960 * 1.1) + 64 : 0 };
     const muxer = new Mp4Muxer.Muxer({
       target: alvo, fastStart: gravavel ? reserva : 'in-memory', firstTimestampBehavior: 'offset',
-      video: { codec: 'avc', width: ref.largura, height: ref.altura, frameRate: ref.fps },
+      video: { codec: 'avc', width: sd.w, height: sd.h, frameRate: ref.fps },
       audio: codecs.audio ? { codec: codecs.audio.mux, numberOfChannels: codecs.audio.cfg.numberOfChannels, sampleRate: codecs.audio.cfg.sampleRate } : undefined,
     });
     let erroCodec = null;
@@ -193,7 +201,10 @@
     let trava = null; try { trava = await navigator.wakeLock?.request('screen'); } catch { /* sem trava de tela */ }
     const t0 = performance.now(); let feitos = 0;
     const durQuadro = 1e6 / ref.fps;
-    const gop = Math.max(1, Math.round(ref.fps / 2));   // YouTube: GOP fechado de metade da taxa de quadros
+    const gop = Math.max(1, Math.round(ref.fps / 2));
+    const telaEscala = sd.escala ? new OffscreenCanvas(sd.w, sd.h) : null;
+    const ctxEscala = telaEscala?.getContext('2d', { alpha: false });
+    if (ctxEscala) { ctxEscala.imageSmoothingEnabled = true; ctxEscala.imageSmoothingQuality = 'high'; }   // YouTube: GOP fechado de metade da taxa de quadros
     const atualizar = (arq) => {
       const seg = (performance.now() - t0) / 1000, pct = feitos / totalQuadros, vel = feitos / ref.fps / Math.max(seg, 0.001);
       $('barra').value = pct; $('st-pct').textContent = Math.floor(pct * 100) + '%'; $('st-tempo').textContent = fmtDur(feitos / ref.fps);
@@ -231,7 +242,12 @@
           if (!quadro) { if (!ultimoQuadro) return; quadro = ultimoQuadro.clone(); }      // quadro vazio: repete o anterior
           else { ultimoQuadro?.close(); ultimoQuadro = quadro.clone(); }
           const ts = Math.round(feitos * durQuadro);
-          const vf = new VideoFrame(quadro, { timestamp: ts, duration: Math.round(durQuadro) }); quadro.close();
+          let vf;
+          if (sd.escala) {                       // aumenta a resolução na placa de vídeo (suavização de alta qualidade)
+            ctxEscala.drawImage(quadro, 0, 0, sd.w, sd.h);
+            vf = new VideoFrame(telaEscala, { timestamp: ts, duration: Math.round(durQuadro) });
+          } else vf = new VideoFrame(quadro, { timestamp: ts, duration: Math.round(durQuadro) });
+          quadro.close();
           await esperarFila(venc, 6);
           venc.encode(vf, { keyFrame: feitos % gop === 0 }); vf.close();
           feitos++;
@@ -261,7 +277,7 @@
       const tamFinal = gravavel ? null : alvo.buffer.byteLength;
       $('resumo-fim').innerHTML = [['Arquivo', esc(nome)], ['Duração', fmtDur(feitos / ref.fps)], ['Vídeos juntados', lista.length],
         ['Tamanho', tamFinal ? fmtTam(tamFinal) : 'gravado na pasta escolhida'], ['Tempo de conversão', fmtDur(seg)],
-        ['Formato', `H.264 ${ref.largura}×${ref.altura} · ${a ? (a.mux === 'aac' ? 'AAC' : 'Opus') : 'sem áudio'}`]]
+ ['Formato', `H.264 ${sd.w}×${sd.h} · ${a ? (a.mux === 'aac' ? 'AAC' : 'Opus') : 'sem áudio'}`]]
         .map(([k, v]) => `<div><span>${k}</span><b>${v}</b></div>`).join('');
       $('fim-txt').textContent = gravavel ? 'O MP4 já está salvo na pasta que você escolheu. É só enviar para o YouTube.' : 'Clique em "Baixar o MP4" e depois envie para o YouTube.';
       if (!gravavel) { const b = $('baixar'); b.href = URL.createObjectURL(new Blob([alvo.buffer], { type: 'video/mp4' })); b.download = nome; b.classList.remove('hidden'); }
