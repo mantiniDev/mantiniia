@@ -161,6 +161,10 @@ AAC), pronto para o YouTube. **Nada é enviado ao servidor**: tudo roda no naveg
   com `VideoEncoder` (usa a aceleração do computador quando houver) e `AudioEncoder` (reamostra o áudio se preciso);
   alinha o áudio ao vídeo no início de cada arquivo; monta o MP4 com **mp4-muxer** (MIT, `assets/vendor`) gravando
   direto no arquivo escolhido (`showSaveFilePicker`), sem acumular na memória.
+- Saída segundo as recomendações de upload do YouTube: MP4 com o índice ("moov") no início — gravando direto no disco,
+  o espaço é reservado no começo —, sem edit lists, H.264 High progressivo, GOP de meia taxa de quadros (quadro-chave a
+  cada 0,5 s), áudio AAC-LC 48 kHz estéreo (Opus 48 kHz se o navegador não tiver AAC). B-frames não são controláveis no
+  WebCodecs.
 - Só exige login (não usa o banco); qualquer conta vê a ferramenta.
 
 ## E-mail diário

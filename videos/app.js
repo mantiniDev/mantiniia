@@ -112,9 +112,9 @@
     if (!video) throw new Error('o navegador não consegue gerar vídeo H.264 nesta resolução');
     let audio = null;
     if (info.audio) {
-      const canais = Math.min(2, info.audio.canais), taxa = info.audio.taxa;
-      for (const [codec, sr, mux] of [['mp4a.40.2', taxa, 'aac'], ['mp4a.40.2', 48000, 'aac'], ['mp4a.40.2', 44100, 'aac'], ['opus', 48000, 'opus']]) {
-        const cfg = { codec, sampleRate: sr, numberOfChannels: canais, bitrate: canais === 1 ? 96000 : 160000 };
+      // YouTube recomenda AAC-LC, 48 kHz, estéreo (o mono da câmera é copiado para os dois canais)
+      for (const [codec, sr, canais, mux] of [['mp4a.40.2', 48000, 2, 'aac'], ['mp4a.40.2', 44100, 2, 'aac'], ['mp4a.40.2', 48000, 1, 'aac'], ['opus', 48000, 2, 'opus'], ['opus', 48000, 1, 'opus']]) {
+        const cfg = { codec, sampleRate: sr, numberOfChannels: canais, bitrate: canais === 1 ? 128000 : 192000 };
         if ((await AudioEncoder.isConfigSupported(cfg)).supported) { audio = { cfg, mux }; break; }
       }
       if (!audio) throw new Error('o navegador não consegue codificar o áudio');
@@ -142,7 +142,7 @@
     const passo = bits / 8, n = Math.floor(bytes.byteLength / passo / canaisEntrada);
     const out = new Float32Array(n * canaisSaida);
     for (let i = 0; i < n; i++) for (let c = 0; c < canaisSaida; c++) {
-      const o = (i * canaisEntrada + c) * passo;
+      const o = (i * canaisEntrada + Math.min(c, canaisEntrada - 1)) * passo;   // mono → estéreo: mesmo som nos dois canais
       out[i * canaisSaida + c] = bits === 16 ? dv.getInt16(o, true) / 32768 : (dv.getUint8(o) - 128) / 128;
     }
     return out;
@@ -169,8 +169,13 @@
       if (total > 1.5e9 && !confirm('Este navegador não grava direto no disco; o vídeo será montado na memória (pode faltar memória em vídeos longos). Continuar?')) return;
       alvo = new Mp4Muxer.ArrayBufferTarget();
     }
+    // "moov" no início do arquivo (recomendação do YouTube): na memória ele é reposicionado no fim; gravando direto no
+    // disco, o espaço do índice é reservado no começo — o número de quadros é conhecido; o de pacotes de áudio é estimado com folga
+    const totalQ = lista.reduce((t, i) => t + i.info.quadros, 0);
+    const reserva = { expectedVideoChunks: totalQ + 16,
+      expectedAudioChunks: codecs.audio ? Math.ceil((totalQ / ref.fps + lista.length + 2) * codecs.audio.cfg.sampleRate / 960 * 1.1) + 64 : 0 };
     const muxer = new Mp4Muxer.Muxer({
-      target: alvo, fastStart: gravavel ? false : 'in-memory', firstTimestampBehavior: 'offset',
+      target: alvo, fastStart: gravavel ? reserva : 'in-memory', firstTimestampBehavior: 'offset',
       video: { codec: 'avc', width: ref.largura, height: ref.altura, frameRate: ref.fps },
       audio: codecs.audio ? { codec: codecs.audio.mux, numberOfChannels: codecs.audio.cfg.numberOfChannels, sampleRate: codecs.audio.cfg.sampleRate } : undefined,
     });
@@ -188,6 +193,7 @@
     let trava = null; try { trava = await navigator.wakeLock?.request('screen'); } catch { /* sem trava de tela */ }
     const t0 = performance.now(); let feitos = 0;
     const durQuadro = 1e6 / ref.fps;
+    const gop = Math.max(1, Math.round(ref.fps / 2));   // YouTube: GOP fechado de metade da taxa de quadros
     const atualizar = (arq) => {
       const seg = (performance.now() - t0) / 1000, pct = feitos / totalQuadros, vel = feitos / ref.fps / Math.max(seg, 0.001);
       $('barra').value = pct; $('st-pct').textContent = Math.floor(pct * 100) + '%'; $('st-tempo').textContent = fmtDur(feitos / ref.fps);
@@ -227,7 +233,7 @@
           const ts = Math.round(feitos * durQuadro);
           const vf = new VideoFrame(quadro, { timestamp: ts, duration: Math.round(durQuadro) }); quadro.close();
           await esperarFila(venc, 6);
-          venc.encode(vf, { keyFrame: feitos % Math.round(ref.fps * 2) === 0 }); vf.close();
+          venc.encode(vf, { keyFrame: feitos % gop === 0 }); vf.close();
           feitos++;
           if (feitos % 15 === 0) atualizar();
         };
