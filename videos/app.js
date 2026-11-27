@@ -68,7 +68,8 @@
     $('tot-dur').textContent = fmtDur(dur); $('tot-tam').textContent = fmtTam(tam);
     if (!$('nome-saida').value && itens[0]) $('nome-saida').value = itens[0].file.name.replace(/\.avi$/i, '') + (itens.length > 1 ? '_juntado' : '') + '.mp4';
     const ok = conferir();
-    $('converter').disabled = !ok || !temSuporte || rodando;
+    $('converter').disabled = !ok || !temSuporte || rodando || !!window.Resumo?.ocupado();
+    window.Resumo?.listaMudou(ok && temSuporte ? itens.filter((i) => i.info && !i.erro) : []);
     const ref = itens.find((i) => i.info)?.info, sd = ref ? saida(ref) : null;
     $('estimativa').textContent = dur && sd ? `Duração total ${fmtDur(dur)}. Saída ${sd.w}×${sd.h}; o MP4 deve ficar com cerca de ${fmtTam(dur * (sd.bitrate + 192e3) / 8)}. ` +
       (sd.h > 1440 ? 'Em 4K a conversão é bem mais lenta (pode levar algumas vezes a duração do vídeo).' : 'A conversão costuma levar de metade a uma vez a duração do vídeo, conforme o computador.') : '';
@@ -215,6 +216,7 @@
     const esperarFila = async (enc, max) => { while (enc.encodeQueueSize > max) await new Promise((r) => setTimeout(r, 4)); };
 
     let ultimoQuadro = null;
+    const col = window.Resumo?.criarColetor();   // análise para o resumo, na mesma passada
     const a = codecs.audio, canais = a?.cfg.numberOfChannels || 1, taxaSaida = a?.cfg.sampleRate || 0;
     let amostrasEscritas = 0;
     const escreverAudio = (f32) => {
@@ -227,6 +229,7 @@
       for (const [k, it] of lista.entries()) {
         const info = it.info, inicioVideo = feitos * durQuadro;
         atualizar(`Arquivo ${k + 1} de ${lista.length}: ${it.file.name}`);
+        col?.inicioArquivo(it.file, info, inicioVideo / 1e6); let asArq = 0;
         // mantém áudio e vídeo alinhados no início de cada arquivo: completa com silêncio ou descarta sobra
         let descartar = 0;
         const reamostrar = a ? criarReamostrador(info.audio.taxa, taxaSaida, canais) : null;
@@ -241,6 +244,8 @@
           const p = fila.shift(); let quadro = await p;
           if (!quadro) { if (!ultimoQuadro) return; quadro = ultimoQuadro.clone(); }      // quadro vazio: repete o anterior
           else { ultimoQuadro?.close(); ultimoQuadro = quadro.clone(); }
+          const tq = feitos / ref.fps;
+          if (col?.querQuadro(tq)) await col.quadro(quadro, tq);
           const ts = Math.round(feitos * durQuadro);
           let vf;
           if (sd.escala) {                       // aumenta a resolução na placa de vídeo (suavização de alta qualidade)
@@ -260,6 +265,7 @@
             fila.push(x.dados ? new ImageDecoder({ data: x.dados, type: 'image/jpeg' }).decode().then((r) => r.image).catch(() => null) : Promise.resolve(null));
             if (fila.length >= 6) await despachar();
           } else if (a) {
+            if (col) { const m = pcmParaFloat(x.dados, info.audio.bits, info.audio.canais, 1); col.audio(m, info.audio.taxa, inicioVideo / 1e6 + asArq / info.audio.taxa); asArq += m.length; }
             let f = reamostrar(pcmParaFloat(x.dados, info.audio.bits, info.audio.canais, canais));
             if (descartar) { const tira = Math.min(descartar, f.length / canais); f = f.subarray(tira * canais); descartar -= tira; }
             if (f.length) { await esperarFila(aenc, 20); escreverAudio(f); }
@@ -272,6 +278,7 @@
       if (erroCodec) throw erroCodec;
       muxer.finalize();
       if (gravavel) await gravavel.close();
+      if (col) window.Resumo.receberAnalise(col.fim(feitos / ref.fps), lista);
       const seg = (performance.now() - t0) / 1000;
       $('card-fim').classList.remove('hidden');
       const tamFinal = gravavel ? null : alvo.buffer.byteLength;
@@ -298,5 +305,7 @@
   $('converter').addEventListener('click', () => converter().catch((e) => { console.error(e); rodando = false; render(); toast('Erro: ' + (e.message || e), true); }));
   $('cancelar').addEventListener('click', () => { if (confirm('Cancelar a conversão? O arquivo parcial será descartado.')) cancelado = true; });
   window.addEventListener('beforeunload', (ev) => { if (rodando) { ev.preventDefault(); ev.returnValue = ''; } });
-  window.JuntarVideos = { criarReamostrador, pcmParaFloat };   // para testes
+  // usado pelo resumo (resumo.js) e pelos testes
+  window.JuntarVideos = { criarReamostrador, pcmParaFloat, escolherCodecs, saida, render, toast, conferir,
+    pronto: () => conferir(), lista: () => itens.filter((i) => i.info && !i.erro), ocupado: () => rodando, nomeBase: () => $('nome-saida').value.trim() };
 })();

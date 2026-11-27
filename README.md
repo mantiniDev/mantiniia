@@ -169,6 +169,18 @@ AAC), pronto para o YouTube. **Nada é enviado ao servidor**: tudo roda no naveg
   de vídeo (OffscreenCanvas com suavização "high"); vale a pena porque o YouTube usa compressão bem melhor (VP9/AV1, mais
   bitrate) para vídeos enviados em 1440p ou mais, inclusive para quem assiste em 1080p.
 - Só exige login (não usa o banco); qualquer conta vê a ferramenta.
+- **Resumo dos melhores momentos** (`videos/resumo.js`): gera um MP4 curto só com os lances escolhidos.
+  - Análise: volume do som e energia abaixo de 200 Hz (vento) a cada 0,5 s, movimento da imagem (diferença entre
+    quadros reduzidos a 32×18) e uma miniatura a cada 2 s. É feita na mesma passada de "Juntar e converter" ou à parte
+    ("Analisar vídeos", sem converter).
+  - **Futebol**: picos de volume em relação à mediana de ±30 s (gritos/comemoração); o lance começa ~70% antes do pico.
+    Precisa de vídeo com som. São sugestões: a pessoa confirma pelas miniaturas.
+  - **Bike**: com o GPX/TCX do Strava, velocidade a cada segundo (distância em ±2,5 s), casada com o vídeo pela hora do
+    arquivo (a câmera grava a hora do fim; início = fim − duração). "Alinhar automaticamente" procura o ajuste de relógio
+    em que a velocidade do GPS mais se parece com o vento/movimento do vídeo (correlação). Opcional: velocidade escrita
+    no vídeo. Sem GPX, os trechos são estimados pelo vento e pelo movimento.
+  - Montagem: relê só os arquivos que têm lance e codifica só esses quadros; o áudio de cada lance é alinhado ao
+    primeiro quadro dele.
 
 ## E-mail diário
 

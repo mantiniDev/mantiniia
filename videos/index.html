@@ -29,6 +29,13 @@
     .resumo { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; margin: 10px 0; }
     .resumo div span { display: block; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .03em; }
     .resumo div b { font-size: 18px; overflow-wrap: anywhere; display: block; }
+    .lances { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 10px; margin: 12px 0; }
+    .lance { display: grid; grid-template-columns: auto 1fr; gap: 4px 8px; align-items: center; border: 2px solid var(--line); border-radius: 10px; padding: 6px; cursor: pointer; font-size: 13px; }
+    .lance.on { border-color: var(--accent); background: var(--accent-soft); }
+    .lance img, .lance .sem-img { grid-column: 1 / -1; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 6px; background: #000; display: block; }
+    .lance input { grid-row: 2; }
+    .lance .quando { font-variant-numeric: tabular-nums; }
+    .lance b { grid-column: 1 / -1; font-size: 14px; }
   </style>
 </head>
 <body>
@@ -108,6 +115,46 @@
       <div class="row"><a class="btn hidden" id="baixar">Baixar o MP4</a><a class="btn" href="https://studio.youtube.com/" target="_blank" rel="noopener">Abrir o YouTube Studio ↗</a></div>
     </div>
 
+    <div class="card hidden" id="card-resumo">
+      <h2 style="margin-top:0">Resumo dos melhores momentos</h2>
+      <p class="small muted" style="margin-top:0">Gera um MP4 curto só com os lances: no <b>futebol</b>, os momentos de comemoração (pelo som);
+        na <b>bike</b>, os trechos de maior velocidade (pelo GPX do Strava). Você confere as miniaturas e escolhe o que entra.</p>
+      <div class="opcoes">
+        <label class="field">Tipo
+          <select id="rs-tipo">
+            <option value="futebol">Futebol — gols</option>
+            <option value="bike">Bike — maior velocidade</option>
+          </select>
+        </label>
+        <label class="field">Duração do resumo
+          <select id="rs-total">
+            <option value="60">1 min</option><option value="120">2 min</option><option value="180" selected>3 min</option><option value="300">5 min</option>
+          </select>
+        </label>
+        <label class="field">Cada lance
+          <select id="rs-lance">
+            <option value="8">8 s</option><option value="12">12 s</option><option value="15" selected>15 s</option><option value="20">20 s</option><option value="30">30 s</option>
+          </select>
+        </label>
+      </div>
+      <div id="rs-bike" class="hidden" style="margin-top:12px">
+        <div class="opcoes">
+          <label class="btn">Escolher GPX/TCX do Strava<input type="file" id="rs-gpx" accept=".gpx,.tcx,application/gpx+xml" hidden></label>
+          <label class="field">Ajuste do relógio da câmera<input id="rs-ajuste" placeholder="0:00" style="width:110px" title="Ex.: 1:02:10 ou -0:45 (h:min:s ou min:s)"></label>
+          <button id="rs-alinhar">Alinhar automaticamente</button>
+          <label id="rs-vel-wrap" class="hidden" style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="rs-vel" checked> Mostrar a velocidade no vídeo</label>
+        </div>
+        <p class="small muted" id="rs-trilha-info" style="margin:8px 0 0"></p>
+        <p class="small muted" id="rs-alinhar-info" style="margin:4px 0 0"></p>
+      </div>
+      <div class="row" style="margin-top:12px"><button id="rs-analisar">Analisar vídeos</button><span class="small muted" id="rs-status"></span></div>
+      <div class="progresso"><progress id="rs-barra" class="hidden" max="1" value="0"></progress><div class="small muted" id="rs-prog"></div></div>
+      <p class="small muted" id="rs-nota" style="margin-bottom:0"></p>
+      <div class="lances" id="rs-lista"></div>
+      <div class="row"><button class="primary" id="rs-gerar" disabled>Gerar resumo</button><button id="rs-cancelar" class="danger hidden">Cancelar</button><span class="small muted" id="rs-soma"></span></div>
+      <div id="rs-fim" style="margin-top:12px"></div>
+    </div>
+
     <p class="small muted">Como funciona: cada quadro da câmera (MJPEG) é lido pelo navegador e recodificado em H.264 pelo
       codificador de vídeo do computador (WebCodecs); o áudio vira AAC (ou Opus, se o navegador não tiver AAC).
       Funciona no Chrome e no Edge para computador.</p>
@@ -120,6 +167,7 @@
   <script src="../assets/auth.js?v=20261115a" data-root="../" data-protect></script>
   <script src="../assets/vendor/mp4-muxer-5.2.2.js"></script>
   <script src="avi.js?v=20261125b"></script>
-  <script src="app.js?v=20261125d"></script>
+  <script src="app.js?v=20261127a"></script>
+  <script src="resumo.js?v=20261127a"></script>
 </body>
 </html>
