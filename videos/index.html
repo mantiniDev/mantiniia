@@ -87,6 +87,13 @@
           </select>
         </label>
         <label class="field" style="min-width:280px;flex:1">Nome do arquivo final<input id="nome-saida"></label>
+        <label class="field" title="Ao terminar, gera também um MP4 curto (arquivo separado, terminado em _resumo) com os lances escolhidos automaticamente">Gerar o resumo junto
+          <select id="junto-resumo">
+            <option value="">Não</option>
+            <option value="futebol">Sim — futebol (gols)</option>
+            <option value="bike">Sim — bike (maior velocidade)</option>
+          </select>
+        </label>
         <button class="primary" id="converter">Juntar e converter</button>
       </div>
       <p class="small muted" style="margin:10px 0 0">💡 Por que 1440p se a câmera grava em 1080p? O YouTube recomprime todo vídeo e dá
@@ -118,7 +125,8 @@
     <div class="card hidden" id="card-resumo">
       <h2 style="margin-top:0">Resumo dos melhores momentos</h2>
       <p class="small muted" style="margin-top:0">Gera um MP4 curto só com os lances: no <b>futebol</b>, os momentos de comemoração (pelo som);
-        na <b>bike</b>, os trechos de maior velocidade (pelo GPX do Strava). Você confere as miniaturas e escolhe o que entra.</p>
+        na <b>bike</b>, os trechos de maior velocidade (pelo GPX do Strava). Você confere as miniaturas e escolhe o que entra —
+        ou marque "Gerar o resumo junto" na conversão para ele sair automaticamente, num arquivo separado. Para a bike, escolha o GPX antes de converter.</p>
       <div class="opcoes">
         <label class="field">Tipo
           <select id="rs-tipo">
@@ -167,7 +175,7 @@
   <script src="../assets/auth.js?v=20261115a" data-root="../" data-protect></script>
   <script src="../assets/vendor/mp4-muxer-5.2.2.js"></script>
   <script src="avi.js?v=20261125b"></script>
-  <script src="app.js?v=20261127a"></script>
-  <script src="resumo.js?v=20261127a"></script>
+  <script src="app.js?v=20261127b"></script>
+  <script src="resumo.js?v=20261127b"></script>
 </body>
 </html>

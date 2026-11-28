@@ -362,19 +362,40 @@
   }
 
   // monta o MP4 do resumo: codifica só os quadros dos lances marcados, direto dos AVIs originais
-  async function gerar() {
+  // nome sugerido para o arquivo do resumo
+  const nomeResumo = () => (J().nomeBase().replace(/(_juntado)?\.mp4$/i, '') || 'video') + '_resumo.mp4';
+
+  /** Pede, no clique de "Juntar e converter", onde salvar o resumo (depois o navegador não deixa abrir a janela).
+   *  Devolve o arquivo escolhido, null (montar na memória e baixar no fim) ou false (a pessoa desistiu do resumo). */
+  async function pedirDestino() {
+    if (!window.showSaveFilePicker) return null;
+    try { return await showSaveFilePicker({ suggestedName: nomeResumo(), types: [{ description: 'Vídeo MP4', accept: { 'video/mp4': ['.mp4'] } }] }); }
+    catch (e) { return e.name === 'AbortError' ? false : null; }
+  }
+
+  /** opc (ao gerar junto com a conversão): tipo ('futebol' | 'bike') e destino (o que pedirDestino devolveu). */
+  async function gerar(opc = {}) {
+    const auto = 'destino' in opc;
+    if (auto && opc.tipo && $('rs-tipo').value !== opc.tipo) { $('rs-tipo').value = opc.tipo; recalcular(true); }
     const lista = J().lista(), segs = segmentos();
-    if (!lista.length || !segs.length || !analise) return;
+    if (!lista.length || !analise) return;
+    if (!segs.length) { if (auto) { $('rs-fim').innerHTML = '<div class="aviso">Nenhum lance encontrado para o resumo.</div>'; J().toast('Vídeo pronto, mas nenhum lance foi encontrado para o resumo.'); } return; }
+    if (auto) $('card-resumo').scrollIntoView({ behavior: 'smooth', block: 'start' });
     const ref = lista[0].info, fps = ref.fps, durQ = 1e6 / fps, gop = Math.max(1, Math.round(fps / 2));
     const sd = J().saida(ref), cfg = cfgAtual();
     const comVel = cfg.tipo === 'bike' && trilha && $('rs-vel').checked;
     let codecs;
     try { codecs = await J().escolherCodecs(ref, sd.bitrate, sd.w, sd.h); } catch (e) { return J().toast('Não dá para gerar neste navegador: ' + e.message, true); }
-    const nome = (J().nomeBase().replace(/(_juntado)?\.mp4$/i, '') || 'video') + '_resumo.mp4';
+    let nome = nomeResumo();
     const totalQ = segs.reduce((t, s) => t + Math.ceil((s.b - s.a) * fps) + 1, 0);
 
     let alvo, gravavel = null;
-    if (window.showSaveFilePicker) {
+    if (auto) {
+      if (opc.destino) {
+        try { nome = opc.destino.name; gravavel = await opc.destino.createWritable(); alvo = new Mp4Muxer.FileSystemWritableFileStreamTarget(gravavel); }
+        catch (e) { J().toast('Não foi possível criar o arquivo do resumo: ' + (e.message || e), true); return; }
+      } else alvo = new Mp4Muxer.ArrayBufferTarget();
+    } else if (window.showSaveFilePicker) {
       try {
         const h = await showSaveFilePicker({ suggestedName: nome, types: [{ description: 'Vídeo MP4', accept: { 'video/mp4': ['.mp4'] } }] });
         gravavel = await h.createWritable(); alvo = new Mp4Muxer.FileSystemWritableFileStreamTarget(gravavel);
@@ -399,7 +420,7 @@
 
     // por lance: quadros gravados, primeiro quadro de saída e o áudio (na taxa original), juntado no fim do lance
     const est = segs.map(() => ({ q: 0, ini: -1, audio: [], fechado: false }));
-    let out = 0, amostras = 0, taxaEntrada = ref.audio?.taxa || 0;
+    let out = 0, amostras = 0, taxaEntrada = ref.audio?.taxa || 0, ultimoImg = null, falhas = 0;
     const escreverAudio = (f32) => {
       if (!f32.length) return;
       const ad = new AudioData({ format: 'f32', sampleRate: taxaSaida, numberOfFrames: f32.length / canais, numberOfChannels: canais, timestamp: Math.round(amostras / taxaSaida * 1e6), data: f32 });
@@ -437,8 +458,9 @@
             for (let s = 0; s < segs.length; s++) if (!est[s].fechado && t > segs[s].b + 1) await fechar(s);
             const s = segEm(t);
             if (s < 0 || !ultimo) continue;
-            const img = await new ImageDecoder({ data: ultimo, type: 'image/jpeg' }).decode().then((r) => r.image).catch(() => null);
-            if (!img) continue;
+            // quadro que não decodifica: repete o anterior (como na conversão completa), para não encurtar o lance
+            let img = await new ImageDecoder({ data: ultimo, type: 'image/jpeg' }).decode().then((r) => r.image).catch(() => null);
+            if (img) { ultimoImg?.close(); ultimoImg = img.clone(); } else if (ultimoImg) { img = ultimoImg.clone(); falhas++; } else continue;
             const e = est[s]; if (e.ini < 0) e.ini = out;
             let vf;
             const ts = Math.round(out * durQ), opts = { timestamp: ts, duration: Math.round(durQ) };
@@ -473,13 +495,15 @@
       let link = '';
       if (!gravavel) { const u = URL.createObjectURL(new Blob([alvo.buffer], { type: 'video/mp4' })); link = `<a class="btn" id="rs-baixar" href="${u}" download="${esc(nome)}">Baixar o resumo</a>`; }
       $('rs-fim').innerHTML = `<div class="aviso ok">✅ Resumo pronto: <b>${esc(nome)}</b> · ${fmtDur(out / fps)} · ${segs.length} lance(s) · gerado em ${fmtDur((performance.now() - t0) / 1000)}.
-        ${gravavel ? 'Já está salvo na pasta escolhida.' : ''}</div>${link}`;
-      J().toast('Resumo pronto!');
+        ${gravavel ? 'Já está salvo na pasta escolhida.' : ''}${falhas ? ` ${falhas} quadro(s) com defeito foram trocados pelo anterior.` : ''}</div>${link}`;
+      if (auto && !gravavel) $('rs-baixar')?.click();
+      J().toast(auto ? 'Vídeo e resumo prontos!' : 'Resumo pronto!');
     } catch (e) {
       try { venc.close(); aenc?.close(); } catch { /* já fechado */ }
       if (gravavel) { try { await gravavel.abort(); } catch { /* nada */ } }
       if (e.message === 'cancelado') J().toast('Resumo cancelado.'); else { console.error(e); J().toast('Erro ao gerar o resumo: ' + (e.message || e), true); }
     } finally {
+      ultimoImg?.close();
       try { await trava?.release(); } catch { /* nada */ }
       ocupado = false; $('rs-cancelar').classList.add('hidden'); progresso(null); atualizar(); J().render();
     }
@@ -534,5 +558,5 @@
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', iniciar); else iniciar();
 
-  window.Resumo = { criarColetor, receberAnalise, listaMudou, ocupado: () => ocupado, _teste: { lerTrilha, calcularLances, alinhar, media, mediana, velEm, relogio } };
+  window.Resumo = { criarColetor, receberAnalise, listaMudou, pedirDestino, gerar, ocupado: () => ocupado, _teste: { lerTrilha, calcularLances, alinhar, media, mediana, velEm, relogio } };
 })();
