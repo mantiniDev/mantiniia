@@ -178,6 +178,14 @@
       if (total > 1.5e9 && !confirm('Este navegador não grava direto no disco; o vídeo será montado na memória (pode faltar memória em vídeos longos). Continuar?')) return;
       alvo = new Mp4Muxer.ArrayBufferTarget();
     }
+    // resumo junto: o arquivo dele precisa ser escolhido agora, ainda no clique (no fim da conversão o navegador não deixa)
+    const tipoResumo = window.Resumo ? $('junto-resumo').value : '';
+    let destResumo = false;
+    if (tipoResumo) {
+      destResumo = await window.Resumo.pedirDestino();
+      if (destResumo === false) toast('Sem o resumo: a conversão segue só com o vídeo completo.');
+    }
+    let concluiu = false;
     // "moov" no início do arquivo (recomendação do YouTube): na memória ele é reposicionado no fim; gravando direto no
     // disco, o espaço do índice é reservado no começo — o número de quadros é conhecido; o de pacotes de áudio é estimado com folga
     const totalQ = lista.reduce((t, i) => t + i.info.quadros, 0);
@@ -291,6 +299,7 @@
       else $('baixar').classList.add('hidden');
       $('barra').value = 1; $('st-pct').textContent = '100%'; $('st-eta').textContent = '—';
       toast('Vídeo pronto!');
+      concluiu = true;
     } catch (e) {
       try { venc.close(); aenc?.close(); } catch { /* já fechado */ }
       if (gravavel) { try { await gravavel.abort(); } catch { /* nada */ } }
@@ -301,6 +310,12 @@
       rodando = false; $('progresso').classList.add('hidden');
       render();
     }
+    if (concluiu && tipoResumo && destResumo !== false) await window.Resumo.gerar({ tipo: tipoResumo, destino: destResumo });
+  }
+  // lembra a escolha do resumo junto
+  if ($('junto-resumo')) {
+    $('junto-resumo').value = localStorage.getItem('videos.juntoResumo') || '';
+    $('junto-resumo').addEventListener('change', () => localStorage.setItem('videos.juntoResumo', $('junto-resumo').value));
   }
   $('converter').addEventListener('click', () => converter().catch((e) => { console.error(e); rodando = false; render(); toast('Erro: ' + (e.message || e), true); }));
   $('cancelar').addEventListener('click', () => { if (confirm('Cancelar a conversão? O arquivo parcial será descartado.')) cancelado = true; });
